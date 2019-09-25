@@ -102,7 +102,7 @@ Respiration: 1 G + 6 O => 6 X + 6 W + 38 A
 Starch genesis: 100 G + 100 A => 1 S (1 A per G stored)
 Starch lysis: 1 S => 100 G
 Lipogenesis: 200 G + 400 A => 1 F (2 A per G stored, twice stored compared to starch)
-Lipolysis: 1 F => 100 G
+Lipolysis: 1 F => 200 G
 Barrier genesis: 1 G + Y + 10 ATP = B
 Barrier breakdown = 1 B + 20 ATP = 1 G + Y
 Instruction genesis: 1 G + Z + 10 ATP = I
