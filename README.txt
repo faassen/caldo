@@ -149,3 +149,26 @@ Stack underflow costs energy as well. Perhaps there should be a cost curve
 there as well.
 
 
+Fuzzy gene finding
+==================
+
+Activation uses a nearest-neighbor search for the gene to active/deactive.
+
+Activation can search as follows:
+
+* push a bunch of triples onto the stack.
+
+* push the amount of triples to match on the stack.
+
+It will find those genes that have a starting triple that matches the first
+entry (with a fuzzy range). If multiple match, it will find the one that
+matches most closely to the second match, until a single matches.
+
+Drawback: we cannot cannot easily color genes anymore, or see them as within a
+single space.
+
+It's also possible to sample particular genes in the attached gene.
+
+One a gene is found, that gene is stored in the 'gene' slot of
+that gene, until another gene is matched. The 'gene' slot will
+be used by all gene operators.
