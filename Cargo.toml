@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 enum-map = "*"
 enum-map-derive = "*"
+kdtree = "0.5.1"
