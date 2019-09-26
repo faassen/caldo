@@ -149,7 +149,7 @@ fn lys_instruction() -> Reaction {
     };
 }
 
-struct Pool {
+pub struct Pool {
     molecule_amounts: EnumMap<Molecule, i64>,
     molecule_infos: EnumMap<Molecule, MoleculeInfo>,
 }
