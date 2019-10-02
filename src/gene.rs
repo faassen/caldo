@@ -58,16 +58,6 @@ impl<'a> Gene<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Instruction {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Dup,
-    Drop,
-}
-
 trait Stack<T> {
     fn pop2(&mut self) -> Option<(T, T)>;
 }
@@ -97,6 +87,16 @@ where
             return Some(());
         });
     }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Instruction {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Dup,
+    Drop,
 }
 
 impl Instruction {
