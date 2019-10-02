@@ -32,6 +32,7 @@ pub enum Instruction {
     Add,
     Sub,
     Mul,
+    Div,
 }
 
 trait Stack<T> {
@@ -43,6 +44,25 @@ impl<T> Stack<T> for Vec<T> {
         return self
             .pop()
             .and_then(|first| self.pop().and_then(|second| Some((second, first))));
+    }
+}
+
+trait OpStack<T, F>
+where
+    F: FnOnce(T, T) -> Option<T>,
+{
+    fn op2(&mut self, op: F) -> bool;
+}
+
+impl<T, F> OpStack<T, F> for Vec<T>
+where
+    F: FnOnce(T, T) -> Option<T>,
+{
+    fn op2(&mut self, op: F) -> bool {
+        return self
+            .pop2()
+            .and_then(|(x, y)| op(x, y))
+            .can_then(|result| self.push(result));
     }
 }
 
@@ -71,22 +91,16 @@ impl Instruction {
     fn execute(&self, stack: &mut Vec<u32>) -> bool {
         match self {
             Instruction::Add => {
-                return stack
-                    .pop2()
-                    .and_then(|(first, second)| first.checked_add(second))
-                    .can_then(|result| stack.push(result));
+                return stack.op2(|first, second| first.checked_add(second));
             }
             Instruction::Sub => {
-                return stack
-                    .pop2()
-                    .and_then(|(first, second)| first.checked_sub(second))
-                    .can_then(|result| stack.push(result));
+                return stack.op2(|first, second| first.checked_sub(second));
             }
             Instruction::Mul => {
-                return stack
-                    .pop2()
-                    .and_then(|(first, second)| first.checked_mul(second))
-                    .can_then(|result| stack.push(result))
+                return stack.op2(|first, second| first.checked_mul(second));
+            }
+            Instruction::Div => {
+                return stack.op2(|first, second| first.checked_div(second));
             }
         }
     }
@@ -218,6 +232,15 @@ mod tests {
         assert!(b);
         assert_eq!(s.len(), 1);
         assert_eq!(s[0], 12);
+    }
+
+    #[test]
+    fn test_div_execute() {
+        let mut s = vec![12u32, 3u32];
+        let b = Instruction::Div.execute(&mut s);
+        assert!(b);
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0], 4);
     }
 
 }
