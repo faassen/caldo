@@ -422,9 +422,17 @@ mod tests {
     #[test]
     fn test_swap_execute() {
         let mut s: Vec<u32> = vec![12, 3];
-        let b = Instruction::Drop.execute(&mut s);
+        let b = Instruction::Swap.execute(&mut s);
         assert!(b.is_some());
-        assert_eq!(s, [12]);
+        assert_eq!(s, [3, 12]);
+    }
+
+    #[test]
+    fn test_swap_execute_underflow() {
+        let mut s: Vec<u32> = vec![12];
+        let b = Instruction::Swap.execute(&mut s);
+        assert!(b.is_none());
+        assert_eq!(s, []);
     }
 
 }
