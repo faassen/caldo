@@ -65,6 +65,7 @@ pub enum Instruction {
     Mul,
     Div,
     Dup,
+    Drop,
 }
 
 trait Stack<T> {
@@ -110,6 +111,7 @@ impl Instruction {
                 stack.push(v);
                 return Some(());
             }),
+            Instruction::Drop => stack.pop().and_then(|_v| return Some(())),
         }
     }
 }
@@ -336,8 +338,7 @@ mod tests {
         let mut s = vec![4u32, 3u32];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_some());
-        assert_eq!(s.len(), 1);
-        assert_eq!(s[0], 7);
+        assert_eq!(s, [7]);
     }
 
     #[test]
@@ -345,7 +346,7 @@ mod tests {
         let mut s = vec![u32::max_value(), 1u32];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_none());
-        assert_eq!(s.len(), 0);
+        assert_eq!(s, []);
     }
 
     #[test]
@@ -353,7 +354,7 @@ mod tests {
         let mut s = vec![];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_none());
-        assert_eq!(s.len(), 0);
+        assert_eq!(s, []);
     }
 
     #[test]
@@ -361,7 +362,7 @@ mod tests {
         let mut s = vec![4u32];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_none());
-        assert_eq!(s.len(), 0);
+        assert_eq!(s, []);
     }
 
     #[test]
@@ -369,8 +370,7 @@ mod tests {
         let mut s = vec![4u32, 3u32];
         let b = Instruction::Sub.execute(&mut s);
         assert!(b.is_some());
-        assert_eq!(s.len(), 1);
-        assert_eq!(s[0], 1);
+        assert_eq!(s, [1]);
     }
 
     #[test]
@@ -378,7 +378,7 @@ mod tests {
         let mut s = vec![4u32, 5u32];
         let b = Instruction::Sub.execute(&mut s);
         assert!(b.is_none());
-        assert_eq!(s.len(), 0);
+        assert_eq!(s, []);
     }
 
     #[test]
@@ -386,8 +386,7 @@ mod tests {
         let mut s = vec![4u32, 3u32];
         let b = Instruction::Mul.execute(&mut s);
         assert!(b.is_some());
-        assert_eq!(s.len(), 1);
-        assert_eq!(s[0], 12);
+        assert_eq!(s, [12]);
     }
 
     #[test]
@@ -395,8 +394,7 @@ mod tests {
         let mut s = vec![12u32, 3u32];
         let b = Instruction::Div.execute(&mut s);
         assert!(b.is_some());
-        assert_eq!(s.len(), 1);
-        assert_eq!(s[0], 4);
+        assert_eq!(s, [4]);
     }
 
     #[test]
@@ -404,10 +402,15 @@ mod tests {
         let mut s = vec![12u32, 3u32];
         let b = Instruction::Dup.execute(&mut s);
         assert!(b.is_some());
-        assert_eq!(s.len(), 3);
-        assert_eq!(s[0], 12);
-        assert_eq!(s[1], 3);
-        assert_eq!(s[2], 3);
+        assert_eq!(s, [12, 3, 3]);
+    }
+
+    #[test]
+    fn test_drop_execute() {
+        let mut s = vec![12u32, 3u32];
+        let b = Instruction::Drop.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [12]);
     }
 
 }
