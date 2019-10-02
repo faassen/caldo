@@ -98,6 +98,7 @@ pub enum Instruction {
     Dup,
     Drop,
     Swap,
+    Over,
 }
 
 impl Instruction {
@@ -118,6 +119,13 @@ impl Instruction {
                 stack.push(x);
                 return Some(());
             }),
+            Instruction::Over => {
+                if stack.len() < 2 {
+                    return None;
+                }
+                stack.push(stack[stack.len() - 2]);
+                return Some(());
+            }
         }
     }
 }
@@ -412,6 +420,14 @@ mod tests {
     }
 
     #[test]
+    fn test_dup_execute_stack_underflow() {
+        let mut s: Vec<u32> = vec![];
+        let b = Instruction::Dup.execute(&mut s);
+        assert!(b.is_none());
+        assert_eq!(s, []);
+    }
+
+    #[test]
     fn test_drop_execute() {
         let mut s: Vec<u32> = vec![12, 3];
         let b = Instruction::Drop.execute(&mut s);
@@ -433,6 +449,22 @@ mod tests {
         let b = Instruction::Swap.execute(&mut s);
         assert!(b.is_none());
         assert_eq!(s, []);
+    }
+
+    #[test]
+    fn test_over_execute() {
+        let mut s: Vec<u32> = vec![12, 3];
+        let b = Instruction::Over.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [12, 3, 12]);
+    }
+
+    #[test]
+    fn test_over_stack_underflow() {
+        let mut s: Vec<u32> = vec![12];
+        let b = Instruction::Over.execute(&mut s);
+        assert!(b.is_none());
+        assert_eq!(s, [12]);
     }
 
 }
