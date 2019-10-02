@@ -197,12 +197,6 @@ mod tests {
         l.add(dup_triplet, Instruction::Dup).expect("cannot add");
         return l;
     }
-
-    fn gene(code: &[u32]) -> Gene {
-        let l = instruction_lookup();
-        return Gene::new(code);
-    }
-
     #[test]
     fn test_gene_execute() {
         let context = ExecutionContext {
