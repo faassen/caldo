@@ -3,8 +3,8 @@ use kdtree::distance::squared_euclidean;
 use kdtree::ErrorKind;
 use kdtree::KdTree;
 
-pub struct Gene {
-    code: Vec<u32>,
+pub struct Gene<'a> {
+    code: &'a [u32],
     stack: Vec<u32>,
     pc: usize,
     failures: u32,
@@ -15,8 +15,8 @@ pub struct ExecutionContext<'a> {
     instruction_lookup: &'a InstructionLookup,
 }
 
-impl Gene {
-    pub fn new(code: Vec<u32>) -> Gene {
+impl<'a> Gene<'a> {
+    pub fn new(code: &[u32]) -> Gene {
         return Gene {
             code: code,
             stack: vec![],
@@ -198,6 +198,11 @@ mod tests {
         return l;
     }
 
+    fn gene(code: &[u32]) -> Gene {
+        let l = instruction_lookup();
+        return Gene::new(code);
+    }
+
     #[test]
     fn test_gene_execute() {
         let context = ExecutionContext {
@@ -205,7 +210,7 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Gene::new(vec![3, 4, ADD_NR]);
+        let mut g = Gene::new(&[3, 4, ADD_NR]);
 
         g.execute(&context);
         g.execute(&context);
@@ -223,7 +228,7 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Gene::new(vec![3, 4, ADD_NR, 6, SUB_NR]);
+        let mut g = Gene::new(&[3, 4, ADD_NR, 6, SUB_NR]);
 
         g.execute(&context);
         g.execute(&context);
@@ -242,7 +247,7 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Gene::new(vec![3, 4, ADD_NR]);
+        let mut g = Gene::new(&[3, 4, ADD_NR]);
 
         g.execute(&context); // 3
         g.execute(&context); // 4
@@ -263,7 +268,7 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Gene::new(vec![3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
+        let mut g = Gene::new(&[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
 
         g.execute(&context);
         g.execute(&context);
@@ -282,7 +287,7 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Gene::new(vec![4, ADD_NR]);
+        let mut g = Gene::new(&[4, ADD_NR]);
 
         g.execute(&context);
         g.execute(&context);
@@ -297,7 +302,7 @@ mod tests {
             max_stack_size: 4,
         };
 
-        let mut g = Gene::new(vec![1, 2, 3, 4, 5]);
+        let mut g = Gene::new(&[1, 2, 3, 4, 5]);
 
         g.execute(&context); // 1
         g.execute(&context); // 1 2
@@ -318,7 +323,7 @@ mod tests {
             max_stack_size: 4,
         };
 
-        let mut g = Gene::new(vec![1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
+        let mut g = Gene::new(&[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
 
         g.execute(&context); // 1
         g.execute(&context); // 1 1
