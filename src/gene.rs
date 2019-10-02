@@ -90,18 +90,10 @@ where
 impl Instruction {
     fn execute(&self, stack: &mut Vec<u32>) -> bool {
         match self {
-            Instruction::Add => {
-                return stack.op2(|first, second| first.checked_add(second));
-            }
-            Instruction::Sub => {
-                return stack.op2(|first, second| first.checked_sub(second));
-            }
-            Instruction::Mul => {
-                return stack.op2(|first, second| first.checked_mul(second));
-            }
-            Instruction::Div => {
-                return stack.op2(|first, second| first.checked_div(second));
-            }
+            Instruction::Add => stack.op2(|first, second| first.checked_add(second)),
+            Instruction::Sub => stack.op2(|first, second| first.checked_sub(second)),
+            Instruction::Mul => stack.op2(|first, second| first.checked_mul(second)),
+            Instruction::Div => stack.op2(|first, second| first.checked_div(second)),
         }
     }
 }
