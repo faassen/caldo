@@ -3,14 +3,15 @@ use kdtree::distance::squared_euclidean;
 use kdtree::ErrorKind;
 use kdtree::KdTree;
 
-struct Gene {
+pub struct Gene {
     code: Vec<u32>,
     stack: Vec<u32>,
     pc: usize,
+    failures: u32,
 }
 
 impl Gene {
-    fn execute(&mut self, lookup: &InstructionLookup) {
+    pub fn execute(&mut self, lookup: &InstructionLookup) {
         let value = self.code[self.pc];
         let t = Triplet::from_int(value);
         if !t.instruction {
@@ -18,61 +19,111 @@ impl Gene {
             return;
         }
         let instruction = lookup.find(t);
-        instruction.execute(&mut self.stack);
+        let success = instruction.execute(&mut self.stack);
+        if !success {
+            self.failures += 1;
+        }
         self.pc += 1;
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-enum Instruction {
+pub enum Instruction {
     Add,
     Sub,
+    Mul,
+}
+
+trait Stack<T> {
+    fn pop2(&mut self) -> Option<(T, T)>;
+}
+
+impl<T> Stack<T> for Vec<T> {
+    fn pop2(&mut self) -> Option<(T, T)> {
+        return self
+            .pop()
+            .and_then(|first| self.pop().and_then(|second| Some((second, first))));
+    }
+}
+
+trait CanThen<T, F>
+where
+    F: FnOnce(T) -> (),
+{
+    fn can_then(self, f: F) -> bool;
+}
+
+impl<T, F> CanThen<T, F> for Option<T>
+where
+    F: FnOnce(T) -> (),
+{
+    fn can_then(self, f: F) -> bool {
+        return self
+            .and_then(|x| {
+                f(x);
+                Some(true)
+            })
+            .unwrap_or(false);
+    }
 }
 
 impl Instruction {
-    fn execute(&self, stack: &mut Vec<u32>) {
+    fn execute(&self, stack: &mut Vec<u32>) -> bool {
         match self {
             Instruction::Add => {
-                let v1 = stack.pop();
-                let v2 = stack.pop();
-                match v1 {
-                    Some(v) => {}
-                    None => {}
-                }
+                return stack
+                    .pop2()
+                    .and_then(|(first, second)| first.checked_add(second))
+                    .can_then(|result| stack.push(result));
             }
-            Instruction::Sub => {}
+            Instruction::Sub => {
+                return stack
+                    .pop2()
+                    .and_then(|(first, second)| first.checked_sub(second))
+                    .can_then(|result| stack.push(result));
+            }
+            Instruction::Mul => {
+                return stack
+                    .pop2()
+                    .and_then(|(first, second)| first.checked_mul(second))
+                    .can_then(|result| stack.push(result))
+            }
         }
     }
 }
 
-struct InstructionLookup {
+pub struct InstructionLookup {
     tree: KdTree<f32, Instruction, [f32; 3]>,
 }
 
 #[derive(Debug, Clone, Copy)]
-struct InstructionLookupError {}
+pub struct InstructionLookupError {}
 
-type InstructionLookupAddResult = Result<(), InstructionLookupError>;
+pub type InstructionLookupAddResult = Result<(), InstructionLookupError>;
 
 impl From<ErrorKind> for InstructionLookupError {
-    fn from(error: ErrorKind) -> Self {
+    fn from(_error: ErrorKind) -> Self {
         InstructionLookupError {}
     }
 }
 
 impl InstructionLookup {
-    fn new() -> InstructionLookup {
+    pub fn new() -> InstructionLookup {
         return InstructionLookup {
             tree: KdTree::new(3),
         };
     }
 
-    fn add(&mut self, triplet: Triplet, instruction: Instruction) -> InstructionLookupAddResult {
+    pub fn add(
+        &mut self,
+        triplet: Triplet,
+        instruction: Instruction,
+    ) -> InstructionLookupAddResult {
         self.tree.add(triplet.coordinates(), instruction)?;
         return Ok(());
     }
 
-    fn find(&self, t: Triplet) -> Instruction {
+    pub fn find(&self, t: Triplet) -> Instruction {
         let v = self
             .tree
             .nearest(&t.coordinates(), 1, &squared_euclidean)
@@ -108,6 +159,65 @@ mod tests {
         l.add(t2, i2)?;
         assert_eq!(l.find(tlookup), i1);
         return Ok(());
+    }
+
+    #[test]
+    fn test_add_execute() {
+        let mut s = vec![4u32, 3u32];
+        let b = Instruction::Add.execute(&mut s);
+        assert!(b);
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0], 7);
+    }
+
+    #[test]
+    fn test_add_execute_overflow() {
+        let mut s = vec![u32::max_value(), 1u32];
+        let b = Instruction::Add.execute(&mut s);
+        assert_eq!(b, false);
+        assert_eq!(s.len(), 0);
+    }
+
+    #[test]
+    fn test_add_execute_stack_underflow_empty_stack() {
+        let mut s = vec![];
+        let b = Instruction::Add.execute(&mut s);
+        assert_eq!(b, false);
+        assert_eq!(s.len(), 0);
+    }
+
+    #[test]
+    fn test_add_execute_stack_underflow_too_little_on_stack() {
+        let mut s = vec![4u32];
+        let b = Instruction::Add.execute(&mut s);
+        assert_eq!(b, false);
+        assert_eq!(s.len(), 0);
+    }
+
+    #[test]
+    fn test_sub_execute() {
+        let mut s = vec![4u32, 3u32];
+        let b = Instruction::Sub.execute(&mut s);
+        assert!(b);
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0], 1);
+    }
+
+    #[test]
+    fn test_sub_execute_underflow() {
+        let mut s = vec![4u32, 5u32];
+        let b = Instruction::Sub.execute(&mut s);
+        assert_eq!(b, false);
+        assert_eq!(s.len(), 0);
+    }
+
+    #[test]
+    fn test_mul_execute() {
+        let mut s = vec![4u32, 3u32];
+        let b = Instruction::Mul.execute(&mut s);
+        assert!(b);
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0], 12);
     }
 
 }
