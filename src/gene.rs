@@ -20,8 +20,11 @@ impl Gene {
         }
         let instruction = lookup.find(t);
         let success = instruction.execute(&mut self.stack);
-        if !success {
-            self.failures += 1;
+        match success {
+            Some(_) => {
+                self.failures += 1;
+            }
+            None => {}
         }
         self.pc += 1;
     }
@@ -51,44 +54,23 @@ trait OpStack<T, F>
 where
     F: FnOnce(T, T) -> Option<T>,
 {
-    fn op2(&mut self, op: F) -> bool;
+    fn op2(&mut self, op: F) -> Option<()>;
 }
 
 impl<T, F> OpStack<T, F> for Vec<T>
 where
     F: FnOnce(T, T) -> Option<T>,
 {
-    fn op2(&mut self, op: F) -> bool {
-        return self
-            .pop2()
-            .and_then(|(x, y)| op(x, y))
-            .can_then(|result| self.push(result));
-    }
-}
-
-trait CanThen<T, F>
-where
-    F: FnOnce(T) -> (),
-{
-    fn can_then(self, f: F) -> bool;
-}
-
-impl<T, F> CanThen<T, F> for Option<T>
-where
-    F: FnOnce(T) -> (),
-{
-    fn can_then(self, f: F) -> bool {
-        return self
-            .and_then(|x| {
-                f(x);
-                Some(true)
-            })
-            .unwrap_or(false);
+    fn op2(&mut self, op: F) -> Option<()> {
+        return self.pop2().and_then(|(x, y)| op(x, y)).and_then(|result| {
+            self.push(result);
+            return Some(());
+        });
     }
 }
 
 impl Instruction {
-    fn execute(&self, stack: &mut Vec<u32>) -> bool {
+    fn execute(&self, stack: &mut Vec<u32>) -> Option<()> {
         match self {
             Instruction::Add => stack.op2(|first, second| first.checked_add(second)),
             Instruction::Sub => stack.op2(|first, second| first.checked_sub(second)),
@@ -171,7 +153,7 @@ mod tests {
     fn test_add_execute() {
         let mut s = vec![4u32, 3u32];
         let b = Instruction::Add.execute(&mut s);
-        assert!(b);
+        assert!(b.is_some());
         assert_eq!(s.len(), 1);
         assert_eq!(s[0], 7);
     }
@@ -180,7 +162,7 @@ mod tests {
     fn test_add_execute_overflow() {
         let mut s = vec![u32::max_value(), 1u32];
         let b = Instruction::Add.execute(&mut s);
-        assert_eq!(b, false);
+        assert!(b.is_none());
         assert_eq!(s.len(), 0);
     }
 
@@ -188,7 +170,7 @@ mod tests {
     fn test_add_execute_stack_underflow_empty_stack() {
         let mut s = vec![];
         let b = Instruction::Add.execute(&mut s);
-        assert_eq!(b, false);
+        assert!(b.is_none());
         assert_eq!(s.len(), 0);
     }
 
@@ -196,7 +178,7 @@ mod tests {
     fn test_add_execute_stack_underflow_too_little_on_stack() {
         let mut s = vec![4u32];
         let b = Instruction::Add.execute(&mut s);
-        assert_eq!(b, false);
+        assert!(b.is_none());
         assert_eq!(s.len(), 0);
     }
 
@@ -204,7 +186,7 @@ mod tests {
     fn test_sub_execute() {
         let mut s = vec![4u32, 3u32];
         let b = Instruction::Sub.execute(&mut s);
-        assert!(b);
+        assert!(b.is_some());
         assert_eq!(s.len(), 1);
         assert_eq!(s[0], 1);
     }
@@ -213,7 +195,7 @@ mod tests {
     fn test_sub_execute_underflow() {
         let mut s = vec![4u32, 5u32];
         let b = Instruction::Sub.execute(&mut s);
-        assert_eq!(b, false);
+        assert!(b.is_none());
         assert_eq!(s.len(), 0);
     }
 
@@ -221,7 +203,7 @@ mod tests {
     fn test_mul_execute() {
         let mut s = vec![4u32, 3u32];
         let b = Instruction::Mul.execute(&mut s);
-        assert!(b);
+        assert!(b.is_some());
         assert_eq!(s.len(), 1);
         assert_eq!(s[0], 12);
     }
@@ -230,7 +212,7 @@ mod tests {
     fn test_div_execute() {
         let mut s = vec![12u32, 3u32];
         let b = Instruction::Div.execute(&mut s);
-        assert!(b);
+        assert!(b.is_some());
         assert_eq!(s.len(), 1);
         assert_eq!(s[0], 4);
     }
