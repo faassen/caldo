@@ -97,6 +97,7 @@ pub enum Instruction {
     Div,
     Dup,
     Drop,
+    Swap,
 }
 
 impl Instruction {
@@ -112,6 +113,11 @@ impl Instruction {
                 return Some(());
             }),
             Instruction::Drop => stack.pop().and_then(|_v| return Some(())),
+            Instruction::Swap => stack.pop2().and_then(|(x, y)| {
+                stack.push(y);
+                stack.push(x);
+                return Some(());
+            }),
         }
     }
 }
@@ -335,7 +341,7 @@ mod tests {
 
     #[test]
     fn test_add_execute() {
-        let mut s = vec![4u32, 3u32];
+        let mut s: Vec<u32> = vec![4, 3];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [7]);
@@ -343,7 +349,7 @@ mod tests {
 
     #[test]
     fn test_add_execute_overflow() {
-        let mut s = vec![u32::max_value(), 1u32];
+        let mut s: Vec<u32> = vec![u32::max_value(), 1];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_none());
         assert_eq!(s, []);
@@ -351,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_add_execute_stack_underflow_empty_stack() {
-        let mut s = vec![];
+        let mut s: Vec<u32> = vec![];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_none());
         assert_eq!(s, []);
@@ -359,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_add_execute_stack_underflow_too_little_on_stack() {
-        let mut s = vec![4u32];
+        let mut s: Vec<u32> = vec![4];
         let b = Instruction::Add.execute(&mut s);
         assert!(b.is_none());
         assert_eq!(s, []);
@@ -367,7 +373,7 @@ mod tests {
 
     #[test]
     fn test_sub_execute() {
-        let mut s = vec![4u32, 3u32];
+        let mut s: Vec<u32> = vec![4, 3];
         let b = Instruction::Sub.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [1]);
@@ -375,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_sub_execute_underflow() {
-        let mut s = vec![4u32, 5u32];
+        let mut s: Vec<u32> = vec![4, 5];
         let b = Instruction::Sub.execute(&mut s);
         assert!(b.is_none());
         assert_eq!(s, []);
@@ -383,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_mul_execute() {
-        let mut s = vec![4u32, 3u32];
+        let mut s: Vec<u32> = vec![4, 3];
         let b = Instruction::Mul.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [12]);
@@ -391,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_div_execute() {
-        let mut s = vec![12u32, 3u32];
+        let mut s: Vec<u32> = vec![12, 3];
         let b = Instruction::Div.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [4]);
@@ -399,7 +405,7 @@ mod tests {
 
     #[test]
     fn test_dup_execute() {
-        let mut s = vec![12u32, 3u32];
+        let mut s: Vec<u32> = vec![12, 3];
         let b = Instruction::Dup.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [12, 3, 3]);
@@ -407,7 +413,15 @@ mod tests {
 
     #[test]
     fn test_drop_execute() {
-        let mut s = vec![12u32, 3u32];
+        let mut s: Vec<u32> = vec![12, 3];
+        let b = Instruction::Drop.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [12]);
+    }
+
+    #[test]
+    fn test_swap_execute() {
+        let mut s: Vec<u32> = vec![12, 3];
         let b = Instruction::Drop.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [12]);
