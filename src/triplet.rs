@@ -6,6 +6,7 @@ pub struct Triplet {
     pub instruction: bool,
 }
 
+// XXX Use From and Into
 impl Triplet {
     pub fn from_int(i: u32) -> Triplet {
         let fields = i >> 24 & 0xff;
