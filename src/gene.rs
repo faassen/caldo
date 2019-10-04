@@ -3,6 +3,9 @@ use kdtree::distance::squared_euclidean;
 use kdtree::ErrorKind;
 use kdtree::KdTree;
 
+const TRUE: u32 = 0xFFFFFFFF;
+const FALSE: u32 = 0;
+
 pub struct Gene<'a> {
     code: &'a [u32],
     stack: Vec<u32>,
@@ -100,6 +103,10 @@ pub enum Instruction {
     Swap,
     Over,
     Rot,
+    Eq,
+    Ne,
+    Gt,
+    Lt,
 }
 
 // compare instructions, not
@@ -108,6 +115,14 @@ pub enum Instruction {
 
 // no looping?
 
+fn bool_to_nr(nr: bool) -> u32 {
+    if nr {
+        TRUE
+    } else {
+        FALSE
+    }
+}
+
 impl Instruction {
     fn execute(&self, stack: &mut Vec<u32>) -> Option<()> {
         match self {
@@ -115,6 +130,10 @@ impl Instruction {
             Instruction::Sub => stack.op2(|first, second| first.checked_sub(second)),
             Instruction::Mul => stack.op2(|first, second| first.checked_mul(second)),
             Instruction::Div => stack.op2(|first, second| first.checked_div(second)),
+            Instruction::Eq => stack.op2(|first, second| Some(bool_to_nr(first == second))),
+            Instruction::Ne => stack.op2(|first, second| Some(bool_to_nr(first != second))),
+            Instruction::Gt => stack.op2(|first, second| Some(bool_to_nr(first > second))),
+            Instruction::Lt => stack.op2(|first, second| Some(bool_to_nr(first < second))),
             Instruction::Dup => stack.pop().and_then(|v| {
                 stack.push(v);
                 stack.push(v);
@@ -431,6 +450,62 @@ mod tests {
         let b = Instruction::Div.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [4]);
+    }
+
+    #[test]
+    fn test_eq_execute() {
+        let mut s: Vec<u32> = vec![12, 12];
+        let b = Instruction::Eq.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_eq_execute_not_equal() {
+        let mut s: Vec<u32> = vec![12, 3];
+        let b = Instruction::Eq.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_ne_execute() {
+        let mut s: Vec<u32> = vec![12, 12];
+        let b = Instruction::Ne.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_ne_execute_not_equal() {
+        let mut s: Vec<u32> = vec![12, 3];
+        let b = Instruction::Ne.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_gt_execute_true() {
+        let mut s: Vec<u32> = vec![12, 3];
+        let b = Instruction::Gt.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_gt_execute_false() {
+        let mut s: Vec<u32> = vec![3, 12];
+        let b = Instruction::Gt.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_lt_execute_true() {
+        let mut s: Vec<u32> = vec![3, 12];
+        let b = Instruction::Lt.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
     }
 
     #[test]

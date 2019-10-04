@@ -1,7 +1,7 @@
 use enum_map::EnumMap;
 
 #[derive(Debug, Enum, Clone, Copy)]
-enum Molecule {
+pub enum Molecule {
     X, // CO2
     W, // H2O, water
     G, // Glucose
