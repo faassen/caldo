@@ -99,7 +99,14 @@ pub enum Instruction {
     Drop,
     Swap,
     Over,
+    Rot,
 }
+
+// compare instructions, not
+
+// conditional execution, if
+
+// no looping?
 
 impl Instruction {
     fn execute(&self, stack: &mut Vec<u32>) -> Option<()> {
@@ -121,9 +128,24 @@ impl Instruction {
             }),
             Instruction::Over => {
                 if stack.len() < 2 {
+                    stack.clear();
                     return None;
                 }
                 stack.push(stack[stack.len() - 2]);
+                return Some(());
+            }
+            Instruction::Rot => {
+                if stack.len() < 3 {
+                    stack.clear();
+                    return None;
+                }
+                let a = stack.pop().unwrap();
+                let b = stack.pop().unwrap();
+                let c = stack.pop().unwrap();
+
+                stack.push(b);
+                stack.push(a);
+                stack.push(c);
                 return Some(());
             }
         }
@@ -464,7 +486,30 @@ mod tests {
         let mut s: Vec<u32> = vec![12];
         let b = Instruction::Over.execute(&mut s);
         assert!(b.is_none());
-        assert_eq!(s, [12]);
+        assert_eq!(s, []);
     }
 
+    #[test]
+    fn test_over_empty_stack() {
+        let mut s: Vec<u32> = vec![];
+        let b = Instruction::Over.execute(&mut s);
+        assert!(b.is_none());
+        assert_eq!(s, []);
+    }
+
+    #[test]
+    fn test_rot_execute() {
+        let mut s: Vec<u32> = vec![1, 2, 3];
+        let b = Instruction::Rot.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [2, 3, 1]);
+    }
+
+    #[test]
+    fn test_rot_execute_underflow() {
+        let mut s: Vec<u32> = vec![1, 2];
+        let b = Instruction::Rot.execute(&mut s);
+        assert!(b.is_none());
+        assert_eq!(s, []);
+    }
 }

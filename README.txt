@@ -172,3 +172,50 @@ It's also possible to sample particular genes in the attached gene.
 One a gene is found, that gene is stored in the 'gene' slot of
 that gene, until another gene is matched. The 'gene' slot will
 be used by all gene operators.
+
+Ideas
+=====
+
+* Any cell-level operation involves energy input and a threshold to
+  execute it. The energy input slowly decays in time.
+
+* Cellular integrity is reduced slowly, unless energy is spent. And materials?
+  Is integrity lost faster if the cell has more instructions in more genes?
+
+* Do we want to support the implementation of higher-level operators (words)
+  along with gene activation/deactivation? These higher level operators could
+  be called and affect the stack of the calling gene. How to deal with
+  recursion?
+
+* Should we make arithmetic operations wrap instead of fail?
+
+* How does conditional execution work? Two ideas:
+
+  END which goes to the end if the stack contains 0.
+
+  So:
+
+  > END
+
+  an IF construct that executes the next instruction if the stack
+  contains non-null, otherwise skips.
+
+  END sounds simplest.
+
+* Do we want to support looping? Or is the inherent looping enough? Inherent
+  looping is enough.
+
+* Is copying done explicitly? I.e., read a gene, push the results onto
+  the stack, then use the stack (or part of it) to construct a new gene?
+
+* a clear instruction to wipe the stack clean.
+
+
+* Genes have a reference to another gene, and a location on that gene.
+  They can read this gene onto the stack. The location can be shifted.
+
+* They can also write a whole new gene using the stack.
+
+
+
+
