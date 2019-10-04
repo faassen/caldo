@@ -107,20 +107,25 @@ pub enum Instruction {
     Ne,
     Gt,
     Lt,
+    And,
+    Or,
+    Not,
 }
-
-// compare instructions, not
 
 // conditional execution, if
 
 // no looping?
 
-fn bool_to_nr(nr: bool) -> u32 {
-    if nr {
+fn bool_to_nr(b: bool) -> u32 {
+    if b {
         TRUE
     } else {
         FALSE
     }
+}
+
+fn nr_to_bool(nr: u32) -> bool {
+    nr != 0
 }
 
 impl Instruction {
@@ -134,6 +139,16 @@ impl Instruction {
             Instruction::Ne => stack.op2(|first, second| Some(bool_to_nr(first != second))),
             Instruction::Gt => stack.op2(|first, second| Some(bool_to_nr(first > second))),
             Instruction::Lt => stack.op2(|first, second| Some(bool_to_nr(first < second))),
+            Instruction::And => {
+                stack.op2(|first, second| Some(bool_to_nr(nr_to_bool(first) && nr_to_bool(second))))
+            }
+            Instruction::Or => {
+                stack.op2(|first, second| Some(bool_to_nr(nr_to_bool(first) || nr_to_bool(second))))
+            }
+            Instruction::Not => stack.pop().and_then(|v| {
+                stack.push(bool_to_nr(!nr_to_bool(v)));
+                return Some(());
+            }),
             Instruction::Dup => stack.pop().and_then(|v| {
                 stack.push(v);
                 stack.push(v);
@@ -506,6 +521,76 @@ mod tests {
         let b = Instruction::Lt.execute(&mut s);
         assert!(b.is_some());
         assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_and_execute_true() {
+        let mut s: Vec<u32> = vec![3, 1];
+        let b = Instruction::And.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_and_execute_false() {
+        let mut s: Vec<u32> = vec![3, 0];
+        let b = Instruction::And.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_and_execute_false_both() {
+        let mut s: Vec<u32> = vec![0, 0];
+        let b = Instruction::And.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_or_execute_true_both() {
+        let mut s: Vec<u32> = vec![3, 1];
+        let b = Instruction::Or.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_or_execute_true_one() {
+        let mut s: Vec<u32> = vec![3, 0];
+        let b = Instruction::Or.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_or_execute_false_both() {
+        let mut s: Vec<u32> = vec![0, 0];
+        let b = Instruction::Or.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_not_false_to_true() {
+        let mut s: Vec<u32> = vec![FALSE];
+        let b = Instruction::Not.execute(&mut s);
+        assert!(b.is_some());
+        assert_eq!(s, [TRUE]);
+    }
+
+    #[test]
+    fn test_not_true_to_false() {
+        let mut s: Vec<u32> = vec![TRUE];
+        Instruction::Not.execute(&mut s);
+        assert_eq!(s, [FALSE]);
+    }
+
+    #[test]
+    fn test_not_any_non_0_to_false() {
+        let mut s: Vec<u32> = vec![123];
+        Instruction::Not.execute(&mut s);
+        assert_eq!(s, [FALSE]);
     }
 
     #[test]
