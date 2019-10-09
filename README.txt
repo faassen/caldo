@@ -217,5 +217,147 @@ Ideas
 * They can also write a whole new gene using the stack.
 
 
+Instructions
+============
+
+There are instructions that only affect the stack.
+
+There are instructions that affect the PC (DONE, possibly something like CALL).
 
 
+There are also instructions that interact with the environment. These cost more
+energy/materials.
+
+Every gene in a cell has a handle. It's a simple index. When a gene is created,
+its index is set.
+
+[GENE_HANDLE] GENE_EXISTS
+
+A gene can be tested for existence.
+
+[GENE_HANDLE INDEX] GENE_READ
+
+Read a gene.
+
+[GENE_HANDLE CELL_HANDLE] GENE_MOVE
+
+A gene can be moved to another cell, indicated by a connected cell handle.
+This only happens if the cell handle is open.
+
+[AMOUNT DEPTH] GENE_CREATE
+
+A gene can be created using an amount on a stack, and a depth.
+
+
+Gene replication program
+
+0         [0]
+GENE_LEN  [l]
+0         [l c]     ; c: counter
+DO                  ; start of loop
+DUP       [l c c]
+0         [l c c g] ; g: gene index
+SWAP      [l c g c]
+GENE_READ [l c A]  ; A: read value
+SWAP      [l A c]
+1         [l A c 1]
++         [l A c]  ; c++
+ROT       [A c l]
+SWAP      [A l c]
+2DUP      [A l c l c]
+>         [A l c TRUE]
+LOOP      [A l c]
+DROP      [A l]
+1         [A l 1] ; amount, stack depth
+GENE_CRE  [1] ; creates new gene, index 1
+0         [1 north]
+CELL_CRE  [1 0] ; cell 0 has been created
+SWAP      [0 1]
+GENE_MOVE [A ]    ; gene 0 into cell 0
+
+
+IF ... END
+IF ... ELSE ... END
+
+
+[DIRECTION] CELL_CONNECT
+
+Try to connect to another cell.
+
+[CELL_HANDLE] CELL_EXISTS
+
+[CELL_HANDLE] CELL_OPEN
+
+[CELL_HANDLE] CELL_ATTACK
+
+Attacks another cell, decreasing its strength. At some point it's
+opened.
+
+
+
+STACK MANIPULATION
+
+From forth:
+
+SWAP
+DUP
+OVER
+ROT
+DROP
+2SWAP
+2DUP
+2OVER
+2DROP
+
+From factor:
+removign stack elements:
+
+drop ( x -- )
+
+2drop ( x y -- )
+
+3drop ( x y z -- )
+
+nip ( x y -- y )
+
+2nip ( x y z -- z )
+
+
+Duplicating stack elements:
+
+dup ( x -- x x )
+
+2dup ( x y -- x y x y )
+
+3dup ( x y z -- x y z x y z )
+
+over ( x y -- x y x )
+
+2over ( x y z -- x y z x y )
+
+pick ( x y z -- x y z x )
+
+See also here for a bigger list:
+
+https://docs.factorcode.org/content/article-shuffle-words.html
+
+see also Complex shuffle words:
+
+Addressing and multi mode instructions
+======================================
+
+A triplet may be:
+
+* push number on stack.
+
+* execute instruction
+
+* call gene
+
+* do nothing (noop)
+
+There are other instructions that manipulate genes, but
+they are direct and use the stack - they ignore the bits.
+
+Genes are identified by their top instruction (only the triple part, not the
+other bits).

@@ -1,4 +1,4 @@
-use crate::triplet::Triplet;
+use crate::triplet::{Mode, Triplet};
 use kdtree::distance::squared_euclidean;
 use kdtree::ErrorKind;
 use kdtree::KdTree;
@@ -35,18 +35,24 @@ impl<'a> Gene<'a> {
             self.pc = 0;
         }
         let t = Triplet::from_int(value);
-        if !t.instruction {
-            self.stack.push(value);
-            self.shrink_stack_on_overflow(context);
-            return;
-        }
-        let instruction = context.instruction_lookup.find(t);
-        let success = instruction.execute(&mut self.stack);
-        match success {
-            None => {
-                self.failures += 1;
+        match t.mode {
+            Mode::Number => {
+                self.stack.push(value);
             }
-            Some(_) => {}
+            Mode::Instruction => {
+                let instruction = context.instruction_lookup.find(t);
+                let success = instruction.execute(&mut self.stack);
+                match success {
+                    None => {
+                        self.failures += 1;
+                    }
+                    Some(_) => {}
+                }
+            }
+            Mode::Call => {}
+            Mode::Noop => {
+                return;
+            }
         }
         self.shrink_stack_on_overflow(context);
     }
