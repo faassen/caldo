@@ -393,6 +393,14 @@ jumps 4 instructions forward.
 If a gene is stimulated or inhibited, this affects how fast it runs per tick.
 So some functions are slower than others.
 
+
+0 TRUE
+1 2
+2 JF (PC 3)
+3
+4
+5 here
+
 Processors
 ==========
 

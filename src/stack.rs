@@ -3,7 +3,7 @@
 const TRUE: u32 = 0xFFFFFFFF;
 const FALSE: u32 = 0;
 
-trait Stack<T> {
+pub trait Stack<T> {
     fn pop2(&mut self) -> Option<(T, T)>;
 }
 
@@ -15,7 +15,7 @@ impl<T> Stack<T> for Vec<T> {
     }
 }
 
-trait OpStack<T, F>
+pub trait OpStack<T, F>
 where
     F: FnOnce(T, T) -> Option<T>,
 {
@@ -120,7 +120,7 @@ fn bool_to_nr(b: bool) -> u32 {
     }
 }
 
-fn nr_to_bool(nr: u32) -> bool {
+pub fn nr_to_bool(nr: u32) -> bool {
     nr != 0
 }
 

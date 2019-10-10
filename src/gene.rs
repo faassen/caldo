@@ -1,4 +1,6 @@
 use crate::instruction_lookup::InstructionLookup;
+use crate::stack;
+use crate::stack::{nr_to_bool, Stack};
 use crate::triplet::{Mode, Triplet};
 
 pub struct Gene<'a> {
@@ -36,7 +38,7 @@ impl<'a> Gene<'a> {
             }
             Mode::Instruction => {
                 let instruction = context.instruction_lookup.find(t);
-                let success = instruction.execute(&mut self.stack);
+                let success = instruction.execute(self);
                 match success {
                     None => {
                         self.failures += 1;
@@ -60,13 +62,57 @@ impl<'a> Gene<'a> {
         self.stack
             .splice(..context.max_stack_size / 2, [].iter().cloned());
     }
+
+    fn jump(&mut self, adjust: i32) -> Option<()> {
+        let new_pc: i32 = (self.pc as i32) + adjust;
+        if new_pc < 0 || new_pc >= (self.code.len() as i32) {
+            return None;
+        }
+        self.pc = new_pc as usize;
+        Some(())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum GeneInstruction {
+    JF,
+    JB,
+}
+
+impl<'a> GeneInstruction {
+    pub fn execute(&self, gene: &mut Gene<'a>) -> Option<()> {
+        match self {
+            GeneInstruction::JF => gene.stack.pop2().and_then(|(first, second)| {
+                if !nr_to_bool(first) {
+                    return Some(());
+                }
+                gene.jump(second as i32)
+            }),
+            GeneInstruction::JB => Some(()),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Instruction {
+    StackInstruction(stack::Instruction),
+    GeneInstruction(GeneInstruction),
+}
+
+impl<'a> Instruction {
+    pub fn execute(&self, gene: &mut Gene<'a>) -> Option<()> {
+        match self {
+            Instruction::StackInstruction(instruction) => instruction.execute(&mut gene.stack),
+            Instruction::GeneInstruction(instruction) => instruction.execute(gene),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use crate::stack::Instruction;
+    use crate::stack;
 
     const ADD_NR: u32 = 0x01010203;
     const SUB_NR: u32 = 0x01030201;
@@ -77,9 +123,21 @@ mod tests {
         let add_triplet = Triplet::from_int(ADD_NR);
         let sub_triplet = Triplet::from_int(SUB_NR);
         let dup_triplet = Triplet::from_int(DUP_NR);
-        l.add(add_triplet, Instruction::Add).expect("cannot add");
-        l.add(sub_triplet, Instruction::Sub).expect("cannot add");
-        l.add(dup_triplet, Instruction::Dup).expect("cannot add");
+        l.add(
+            add_triplet,
+            Instruction::StackInstruction(stack::Instruction::Add),
+        )
+        .expect("cannot add");
+        l.add(
+            sub_triplet,
+            Instruction::StackInstruction(stack::Instruction::Sub),
+        )
+        .expect("cannot add");
+        l.add(
+            dup_triplet,
+            Instruction::StackInstruction(stack::Instruction::Dup),
+        )
+        .expect("cannot add");
         return l;
     }
     #[test]

@@ -2,7 +2,7 @@ use kdtree::distance::squared_euclidean;
 use kdtree::ErrorKind;
 use kdtree::KdTree;
 
-use crate::stack::Instruction;
+use crate::gene::Instruction;
 use crate::triplet::Triplet;
 
 pub struct InstructionLookup {
@@ -48,12 +48,14 @@ impl InstructionLookup {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gene::Instruction;
+    use crate::stack;
 
     #[test]
     fn test_instruction_lookup_identify() -> InstructionLookupAddResult {
         let mut l = InstructionLookup::new();
         let t = Triplet::from_int(0x010203);
-        let i = Instruction::Add;
+        let i = Instruction::StackInstruction(stack::Instruction::Add);
         l.add(t, i)?;
         assert_eq!(l.find(t), i);
         return Ok(());
@@ -66,8 +68,8 @@ mod tests {
         let t2 = Triplet::from_int(0xFFFFFF);
         let tlookup = Triplet::from_int(0x010402);
 
-        let i1 = Instruction::Add;
-        let i2 = Instruction::Sub;
+        let i1 = Instruction::StackInstruction(stack::Instruction::Add);
+        let i2 = Instruction::StackInstruction(stack::Instruction::Sub);
         l.add(t1, i1)?;
         l.add(t2, i2)?;
         assert_eq!(l.find(tlookup), i1);
