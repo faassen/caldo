@@ -2,7 +2,7 @@ use kdtree::distance::squared_euclidean;
 use kdtree::ErrorKind;
 use kdtree::KdTree;
 
-use crate::gene::Instruction;
+use crate::processor::Instruction;
 use crate::triplet::Triplet;
 
 pub struct InstructionLookup {
@@ -48,7 +48,7 @@ impl InstructionLookup {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::gene::Instruction;
+    use crate::processor::Instruction;
     use crate::stack;
 
     #[test]
