@@ -90,9 +90,20 @@ impl<'a> GeneInstruction {
                 if !nr_to_bool(first) {
                     return Some(());
                 }
+                if second == 0 {
+                    return Some(());
+                }
                 gene.jump(second as i32)
             }),
-            GeneInstruction::JB => Some(()),
+            GeneInstruction::JB => gene.stack.pop2().and_then(|(first, second)| {
+                if !nr_to_bool(first) {
+                    return Some(());
+                }
+                if second == 0 {
+                    return Some(());
+                }
+                gene.jump(-(second as i32 + 1))
+            }),
         }
     }
 }
@@ -168,9 +179,7 @@ mod tests {
 
         let mut g = Gene::new(&[3, 4, ADD_NR]);
 
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
+        g.execute_amount(&context, 3);
 
         assert_eq!(g.stack, [7]);
         assert_eq!(g.failures, 0);
@@ -185,11 +194,7 @@ mod tests {
 
         let mut g = Gene::new(&[3, 4, ADD_NR, 6, SUB_NR]);
 
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
+        g.execute_amount(&context, 5);
 
         assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
@@ -204,12 +209,14 @@ mod tests {
 
         let mut g = Gene::new(&[3, 4, ADD_NR]);
 
-        g.execute(&context); // 3
-        g.execute(&context); // 4
-        g.execute(&context); // 7
-        g.execute(&context); // 7 3
-        g.execute(&context); // 7 3 4
-        g.execute(&context); // 7 7
+        g.execute_amount(&context, 6);
+
+        // 3
+        // 4
+        // 7
+        // 7 3
+        // 7 3 4
+        // 7 7
 
         assert_eq!(g.stack, [7, 7]);
         assert_eq!(g.failures, 0);
@@ -224,11 +231,7 @@ mod tests {
 
         let mut g = Gene::new(&[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
 
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
+        g.execute_amount(&context, 5);
 
         assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
@@ -243,8 +246,7 @@ mod tests {
 
         let mut g = Gene::new(&[4, ADD_NR]);
 
-        g.execute(&context);
-        g.execute(&context);
+        g.execute_amount(&context, 2);
 
         assert_eq!(g.stack, []);
         assert_eq!(g.failures, 1);
@@ -259,11 +261,14 @@ mod tests {
 
         let mut g = Gene::new(&[1, 2, 3, 4, 5]);
 
-        g.execute(&context); // 1
-        g.execute(&context); // 1 2
-        g.execute(&context); // 1 2 3
-        g.execute(&context); // 1 2 3 4
-        g.execute(&context); // 3 4 5
+        g.execute_amount(&context, 5);
+
+        // 1
+        // 1 2
+        // 1 2 3
+        // 1 2 3 4
+        // 3 4 5
+
         assert_eq!(g.stack, [3, 4, 5]);
         assert_eq!(g.failures, 1);
     }
@@ -277,11 +282,13 @@ mod tests {
 
         let mut g = Gene::new(&[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
 
-        g.execute(&context); // 1
-        g.execute(&context); // 1 1
-        g.execute(&context); // 1 1 1
-        g.execute(&context); // 1 1 1 1
-        g.execute(&context); // 1 1 1 1 1
+        g.execute_amount(&context, 5);
+
+        // 1
+        // 1 1
+        // 1 1 1
+        // 1 1 1 1
+        // 1 1 1 1 1
         assert_eq!(g.stack, [1, 1, 1]);
         assert_eq!(g.failures, 1);
     }
@@ -295,12 +302,10 @@ mod tests {
 
         let mut g = Gene::new(&[1, 1, JF_NR, 66, 77]);
 
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
+        g.execute_amount(&context, 4);
 
         assert_eq!(g.stack, [77]);
+        assert_eq!(g.failures, 0);
     }
 
     #[test]
@@ -312,12 +317,110 @@ mod tests {
 
         let mut g = Gene::new(&[1, 2, JF_NR, 66, 77, 88]);
 
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
-        g.execute(&context);
+        g.execute_amount(&context, 4);
 
         assert_eq!(g.stack, [88]);
+    }
+
+    #[test]
+    fn test_jf_too_far() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[1, 200, JF_NR, 66, 88]);
+
+        g.execute_amount(&context, 4);
+
+        assert_eq!(g.stack, [66]);
+        assert_eq!(g.failures, 1);
+    }
+
+    #[test]
+    fn test_jf_false() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[0, 1, JF_NR, 66, 88]);
+
+        g.execute_amount(&context, 4);
+
+        assert_eq!(g.stack, [66]);
+    }
+
+    #[test]
+    fn test_jf_zero() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[1, 0, JF_NR, 66, 88]);
+
+        g.execute_amount(&context, 4);
+
+        assert_eq!(g.stack, [66]);
+    }
+
+    #[test]
+    fn test_jb() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[88, 1, 3, JB_NR, 66]);
+
+        g.execute_amount(&context, 5);
+
+        assert_eq!(g.stack, [88, 88]);
+        assert_eq!(g.failures, 0);
+    }
+
+    #[test]
+    fn test_jb_1() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[88, 1, 1, JB_NR, 66]);
+
+        g.execute_amount(&context, 5);
+
+        assert_eq!(g.stack, [88, 1]);
+    }
+
+    #[test]
+    fn test_jb_zero() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[88, 1, 0, JB_NR, 66]);
+
+        g.execute_amount(&context, 5);
+
+        assert_eq!(g.stack, [88, 66]);
+    }
+
+    #[test]
+    fn test_jb_too_far() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[88, 1, 100, JB_NR, 66]);
+
+        g.execute_amount(&context, 5);
+
+        assert_eq!(g.stack, [88, 66]);
+        assert_eq!(g.failures, 1);
     }
 
 }
