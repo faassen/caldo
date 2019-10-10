@@ -1,10 +1,11 @@
+use crate::gene::Gene;
 use crate::instruction_lookup::InstructionLookup;
 use crate::stack;
 use crate::stack::{nr_to_bool, Stack};
 use crate::triplet::{Mode, Triplet};
 
 pub struct Processor<'a> {
-    code: &'a [u32],
+    gene: &'a Gene<'a>,
     stack: Vec<u32>,
     pc: usize,
     failures: u32,
@@ -16,9 +17,9 @@ pub struct ExecutionContext<'a> {
 }
 
 impl<'a> Processor<'a> {
-    pub fn new(code: &[u32]) -> Processor {
+    pub fn new(gene: &'a Gene<'a>) -> Processor {
         return Processor {
-            code: code,
+            gene,
             stack: vec![],
             pc: 0,
             failures: 0,
@@ -26,9 +27,11 @@ impl<'a> Processor<'a> {
     }
 
     pub fn execute(&mut self, context: &ExecutionContext) {
-        let value = self.code[self.pc];
+        let code = self.gene.code;
+
+        let value = code[self.pc];
         self.pc += 1;
-        if self.pc >= self.code.len() {
+        if self.pc >= code.len() {
             self.pc = 0;
         }
         let t = Triplet::from_int(value);
@@ -69,7 +72,7 @@ impl<'a> Processor<'a> {
 
     fn jump(&mut self, adjust: i32) -> Option<()> {
         let new_pc: i32 = (self.pc as i32) + adjust;
-        if new_pc < 0 || new_pc >= (self.code.len() as i32) {
+        if new_pc < 0 || new_pc >= (self.gene.code.len() as i32) {
             return None;
         }
         self.pc = new_pc as usize;
@@ -177,7 +180,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[3, 4, ADD_NR]);
+        let gene = Gene::new(&[3, 4, ADD_NR]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 3);
 
@@ -192,7 +196,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[3, 4, ADD_NR, 6, SUB_NR]);
+        let gene = Gene::new(&[3, 4, ADD_NR, 6, SUB_NR]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -207,7 +212,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[3, 4, ADD_NR]);
+        let gene = Gene::new(&[3, 4, ADD_NR]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 6);
 
@@ -229,7 +235,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
+        let gene = Gene::new(&[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -244,7 +251,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[4, ADD_NR]);
+        let gene = Gene::new(&[4, ADD_NR]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 2);
 
@@ -259,7 +267,8 @@ mod tests {
             max_stack_size: 4,
         };
 
-        let mut g = Processor::new(&[1, 2, 3, 4, 5]);
+        let gene = Gene::new(&[1, 2, 3, 4, 5]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -280,7 +289,8 @@ mod tests {
             max_stack_size: 4,
         };
 
-        let mut g = Processor::new(&[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
+        let gene = Gene::new(&[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -300,7 +310,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[1, 1, JF_NR, 66, 77]);
+        let gene = Gene::new(&[1, 1, JF_NR, 66, 77]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -315,7 +326,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[1, 2, JF_NR, 66, 77, 88]);
+        let gene = Gene::new(&[1, 2, JF_NR, 66, 77, 88]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -329,7 +341,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[1, 200, JF_NR, 66, 88]);
+        let gene = Gene::new(&[1, 200, JF_NR, 66, 88]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -344,7 +357,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[0, 1, JF_NR, 66, 88]);
+        let gene = Gene::new(&[0, 1, JF_NR, 66, 88]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -358,7 +372,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[1, 0, JF_NR, 66, 88]);
+        let gene = Gene::new(&[1, 0, JF_NR, 66, 88]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -372,7 +387,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[88, 1, 3, JB_NR, 66]);
+        let gene = Gene::new(&[88, 1, 3, JB_NR, 66]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -387,7 +403,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[88, 0, 3, JB_NR, 66]);
+        let gene = Gene::new(&[88, 0, 3, JB_NR, 66]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -402,7 +419,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[88, 1, 1, JB_NR, 66]);
+        let gene = Gene::new(&[88, 1, 1, JB_NR, 66]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -416,7 +434,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[88, 1, 0, JB_NR, 66]);
+        let gene = Gene::new(&[88, 1, 0, JB_NR, 66]);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -430,7 +449,9 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let mut g = Processor::new(&[88, 1, 100, JB_NR, 66]);
+        let gene = Gene::new(&[88, 1, 100, JB_NR, 66]);
+
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
