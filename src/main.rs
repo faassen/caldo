@@ -7,6 +7,7 @@ mod instruction;
 mod reaction;
 mod triplet;
 mod stack;
+mod instruction_lookup;
 
 fn main() {
     println!("Hello, world!");

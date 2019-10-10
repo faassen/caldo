@@ -375,6 +375,8 @@ but call can also be done from the stack, with:
 <GENE_ID>
 CALL
 
+JF and JB
+
 There is a JMPF and JMPB instruction. These jump forwards and backwards.
 They are conditional jumps: they take a bool and the distance to jump
 from the top of the stack. If the jump cannot be made, the jump also is
@@ -418,4 +420,24 @@ A cell can die or be killed.
 
 A cell dies if it's out of ATP.
 
+Should we accept higher values on the stack?
+============================================
 
+We currently interpret them as noop if encountered
+as instructions. So that should be okay.
+
+
+A compilation process
+=====================
+
+Before we start executing instructions, we compile
+it down to definite instruction calls and other
+actions. ala
+
+enum CompiledInstruction {
+    Instruction(instruction),
+    Number(number: u32)
+}
+
+We still have fuzzy lookup for calls. We can do the compilation as soon as a
+gene is created.
