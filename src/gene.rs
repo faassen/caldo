@@ -381,6 +381,21 @@ mod tests {
     }
 
     #[test]
+    fn test_jb_false() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[88, 0, 3, JB_NR, 66]);
+
+        g.execute_amount(&context, 5);
+
+        assert_eq!(g.stack, [88, 66]);
+        assert_eq!(g.failures, 0);
+    }
+
+    #[test]
     fn test_jb_1() {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
