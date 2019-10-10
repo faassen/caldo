@@ -361,3 +361,61 @@ they are direct and use the stack - they ignore the bits.
 
 Genes are identified by their top instruction (only the triple part, not the
 other bits).
+
+Control flow
+============
+
+A gene is executed, until it reaches the end. If it reaches the end and the
+call stack is empty, it loops back to the beginning, otherwise it returns back
+to the calling gene.
+
+Calling can be done through call mode for a baked-in 1 instruction call,
+but call can also be done from the stack, with:
+
+<GENE_ID>
+CALL
+
+There is a JMPF and JMPB instruction. These jump forwards and backwards.
+They are conditional jumps: they take a bool and the distance to jump
+from the top of the stack. If the jump cannot be made, the jump also is
+not executed.
+
+So
+
+TRUE
+4
+JMPF
+
+jumps 4 instructions forward.
+
+If a gene is stimulated or inhibited, this affects how fast it runs per tick.
+So some functions are slower than others.
+
+Processors
+==========
+
+A cell may have multiple processors. A processor runs independently
+on a gene once it gets started. A cell can have multiple processors
+on the same gene.
+
+<GENE_ID>
+PROC_START
+
+starts a processor on that gene.
+
+<GENE_ID>
+PROC_END kills all processors on a gene.
+
+PROC_DONE kills the current processor.
+
+There is a maximum amount of processors per gene, but
+since running a processor takes ATP, running out of ATP also is trouble.
+
+Death
+=====
+
+A cell can die or be killed.
+
+A cell dies if it's out of ATP.
+
+
