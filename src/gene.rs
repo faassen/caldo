@@ -54,6 +54,10 @@ impl<'a> Gene<'a> {
         self.shrink_stack_on_overflow(context);
     }
 
+    pub fn execute_amount(&mut self, context: &ExecutionContext, amount: usize) {
+        (0..amount).for_each(|_| self.execute(context))
+    }
+
     pub fn shrink_stack_on_overflow(&mut self, context: &ExecutionContext) {
         if self.stack.len() <= context.max_stack_size {
             return;
@@ -117,12 +121,16 @@ mod tests {
     const ADD_NR: u32 = 0x01010203;
     const SUB_NR: u32 = 0x01030201;
     const DUP_NR: u32 = 0x01070707;
-
+    const JF_NR: u32 = 0x010F0F0F;
+    const JB_NR: u32 = 0x010E0F0F;
     fn instruction_lookup() -> InstructionLookup {
         let mut l = InstructionLookup::new();
         let add_triplet = Triplet::from_int(ADD_NR);
         let sub_triplet = Triplet::from_int(SUB_NR);
         let dup_triplet = Triplet::from_int(DUP_NR);
+        let jf_triplet = Triplet::from_int(JF_NR);
+        let jb_triplet = Triplet::from_int(JB_NR);
+
         l.add(
             add_triplet,
             Instruction::StackInstruction(stack::Instruction::Add),
@@ -138,6 +146,17 @@ mod tests {
             Instruction::StackInstruction(stack::Instruction::Dup),
         )
         .expect("cannot add");
+        l.add(
+            jf_triplet,
+            Instruction::GeneInstruction(GeneInstruction::JF),
+        )
+        .expect("cannot add");
+        l.add(
+            jb_triplet,
+            Instruction::GeneInstruction(GeneInstruction::JB),
+        )
+        .expect("cannot add");
+
         return l;
     }
     #[test]
@@ -153,8 +172,7 @@ mod tests {
         g.execute(&context);
         g.execute(&context);
 
-        assert_eq!(g.stack.len(), 1);
-        assert_eq!(g.stack[0], 7);
+        assert_eq!(g.stack, [7]);
         assert_eq!(g.failures, 0);
     }
 
@@ -172,8 +190,8 @@ mod tests {
         g.execute(&context);
         g.execute(&context);
         g.execute(&context);
-        assert_eq!(g.stack.len(), 1);
-        assert_eq!(g.stack[0], 1);
+
+        assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
     }
 
@@ -192,9 +210,8 @@ mod tests {
         g.execute(&context); // 7 3
         g.execute(&context); // 7 3 4
         g.execute(&context); // 7 7
-        assert_eq!(g.stack.len(), 2);
-        assert_eq!(g.stack[0], 7);
-        assert_eq!(g.stack[0], 7);
+
+        assert_eq!(g.stack, [7, 7]);
         assert_eq!(g.failures, 0);
     }
 
@@ -212,8 +229,8 @@ mod tests {
         g.execute(&context);
         g.execute(&context);
         g.execute(&context);
-        assert_eq!(g.stack.len(), 1);
-        assert_eq!(g.stack[0], 1);
+
+        assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
     }
 
@@ -228,7 +245,8 @@ mod tests {
 
         g.execute(&context);
         g.execute(&context);
-        assert_eq!(g.stack.len(), 0);
+
+        assert_eq!(g.stack, []);
         assert_eq!(g.failures, 1);
     }
 
@@ -246,11 +264,8 @@ mod tests {
         g.execute(&context); // 1 2 3
         g.execute(&context); // 1 2 3 4
         g.execute(&context); // 3 4 5
-        assert_eq!(g.stack.len(), 3);
+        assert_eq!(g.stack, [3, 4, 5]);
         assert_eq!(g.failures, 1);
-        assert_eq!(g.stack[0], 3);
-        assert_eq!(g.stack[1], 4);
-        assert_eq!(g.stack[2], 5);
     }
 
     #[test]
@@ -267,11 +282,42 @@ mod tests {
         g.execute(&context); // 1 1 1
         g.execute(&context); // 1 1 1 1
         g.execute(&context); // 1 1 1 1 1
-        assert_eq!(g.stack.len(), 3);
+        assert_eq!(g.stack, [1, 1, 1]);
         assert_eq!(g.failures, 1);
-        assert_eq!(g.stack[0], 1);
-        assert_eq!(g.stack[1], 1);
-        assert_eq!(g.stack[2], 1);
+    }
+
+    #[test]
+    fn test_jf() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[1, 1, JF_NR, 66, 77]);
+
+        g.execute(&context);
+        g.execute(&context);
+        g.execute(&context);
+        g.execute(&context);
+
+        assert_eq!(g.stack, [77]);
+    }
+
+    #[test]
+    fn test_jf2() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
+
+        let mut g = Gene::new(&[1, 2, JF_NR, 66, 77, 88]);
+
+        g.execute(&context);
+        g.execute(&context);
+        g.execute(&context);
+        g.execute(&context);
+
+        assert_eq!(g.stack, [88]);
     }
 
 }
