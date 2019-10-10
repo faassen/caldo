@@ -3,11 +3,11 @@ extern crate enum_map;
 
 // XXX use pub mod to shut up unused warnings
 pub mod gene;
-mod instruction;
-mod reaction;
-mod triplet;
-mod stack;
-mod instruction_lookup;
+pub mod instruction;
+pub mod instruction_lookup;
+pub mod reaction;
+pub mod stack;
+pub mod triplet;
 
 fn main() {
     println!("Hello, world!");
