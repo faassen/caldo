@@ -6,6 +6,7 @@ pub mod gene;
 mod instruction;
 mod reaction;
 mod triplet;
+mod stack;
 
 fn main() {
     println!("Hello, world!");
