@@ -276,6 +276,9 @@ SWAP      [0 1]
 GENE_MOVE [A ]    ; gene 0 into cell 0
 
 
+Replication should also start at least one processor before
+the gene is moved.
+
 IF ... END
 IF ... ELSE ... END
 
@@ -454,3 +457,20 @@ enum CompiledInstruction {
 
 We still have fuzzy lookup for calls. We can do the compilation as soon as a
 gene is created.
+
+
+Refactoring plan
+================
+
+* Rename Gene to Processor
+
+* make GeneInstruction into ProcessorInstruction
+
+* Extract code into new Gene. &'a mut Gene<'a>
+
+* refer to gene with Processor.
+
+* call_stack: Vec<&'a Gene<'a>>
+
+
+
