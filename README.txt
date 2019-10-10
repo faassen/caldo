@@ -401,6 +401,11 @@ So some functions are slower than others.
 4
 5 here
 
+0 88
+1 TRUE
+2 1
+3 JF (PC 4)
+
 Processors
 ==========
 
