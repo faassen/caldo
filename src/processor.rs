@@ -1,5 +1,5 @@
 use crate::gene::Gene;
-use crate::instruction_lookup::InstructionLookup;
+use crate::lookup;
 use crate::stack;
 use crate::stack::{nr_to_bool, Stack};
 use crate::triplet::{Mode, Triplet};
@@ -13,7 +13,7 @@ pub struct Processor<'a> {
 
 pub struct ExecutionContext<'a> {
     max_stack_size: usize,
-    instruction_lookup: &'a InstructionLookup,
+    instruction_lookup: &'a lookup::Lookup<'a, Instruction>,
 }
 
 impl<'a> Processor<'a> {
@@ -40,7 +40,7 @@ impl<'a> Processor<'a> {
                 self.stack.push(value);
             }
             Mode::Instruction => {
-                let instruction = context.instruction_lookup.find(t);
+                let instruction = context.instruction_lookup.find(&t.coordinates());
                 let success = instruction.execute(self);
                 match success {
                     None => {
@@ -109,6 +109,13 @@ impl<'a> ProcessorInstruction {
             }),
         }
     }
+
+    pub fn coordinates(&self) -> [f32; 3] {
+        match self {
+            ProcessorInstruction::JF => [10., 10., 10.],
+            ProcessorInstruction::JB => [10., 10., 20.],
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -124,6 +131,29 @@ impl<'a> Instruction {
             Instruction::ProcessorInstruction(instruction) => instruction.execute(processor),
         }
     }
+    pub fn number(&self) -> u32 {
+        match self {
+            Instruction::StackInstruction(instruction) => {
+                coordinates_to_number(instruction.coordinates())
+            }
+            Instruction::ProcessorInstruction(instruction) => {
+                coordinates_to_number(instruction.coordinates())
+            }
+        }
+    }
+}
+
+fn coordinates_to_number(c: [f32; 3]) -> u32 {
+    (c[0] as u32 * 256 * 256) + (c[1] as u32 * 256) + (c[2] as u32)
+}
+
+impl lookup::Coordinates for Instruction {
+    fn coordinates(&self) -> [f32; 3] {
+        match self {
+            Instruction::StackInstruction(instruction) => instruction.coordinates(),
+            Instruction::ProcessorInstruction(instruction) => instruction.coordinates(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -131,45 +161,24 @@ mod tests {
     use super::*;
 
     use crate::stack;
+    const ADD_NR: u32 = 0x01640A0A;
+    const SUB_NR: u32 = 0x01640A14;
+    const DUP_NR: u32 = 0x01640A32;
+    const JF_NR: u32 = 0x010A0A0A;
+    const JB_NR: u32 = 0x010A0A14;
+    fn instruction_lookup<'a>() -> lookup::Lookup<'a, Instruction> {
+        let mut l = lookup::Lookup::<Instruction>::new();
 
-    const ADD_NR: u32 = 0x01010203;
-    const SUB_NR: u32 = 0x01030201;
-    const DUP_NR: u32 = 0x01070707;
-    const JF_NR: u32 = 0x010F0F0F;
-    const JB_NR: u32 = 0x010E0F0F;
-    fn instruction_lookup() -> InstructionLookup {
-        let mut l = InstructionLookup::new();
-        let add_triplet = Triplet::from_int(ADD_NR);
-        let sub_triplet = Triplet::from_int(SUB_NR);
-        let dup_triplet = Triplet::from_int(DUP_NR);
-        let jf_triplet = Triplet::from_int(JF_NR);
-        let jb_triplet = Triplet::from_int(JB_NR);
-
-        l.add(
-            add_triplet,
-            Instruction::StackInstruction(stack::Instruction::Add),
-        )
-        .expect("cannot add");
-        l.add(
-            sub_triplet,
-            Instruction::StackInstruction(stack::Instruction::Sub),
-        )
-        .expect("cannot add");
-        l.add(
-            dup_triplet,
-            Instruction::StackInstruction(stack::Instruction::Dup),
-        )
-        .expect("cannot add");
-        l.add(
-            jf_triplet,
-            Instruction::ProcessorInstruction(ProcessorInstruction::JF),
-        )
-        .expect("cannot add");
-        l.add(
-            jb_triplet,
-            Instruction::ProcessorInstruction(ProcessorInstruction::JB),
-        )
-        .expect("cannot add");
+        l.add(&Instruction::StackInstruction(stack::Instruction::Add))
+            .expect("cannot add");
+        l.add(&Instruction::StackInstruction(stack::Instruction::Sub))
+            .expect("cannot add");
+        l.add(&Instruction::StackInstruction(stack::Instruction::Dup))
+            .expect("cannot add");
+        l.add(&Instruction::ProcessorInstruction(ProcessorInstruction::JF))
+            .expect("cannot add");
+        l.add(&Instruction::ProcessorInstruction(ProcessorInstruction::JB))
+            .expect("cannot add");
 
         return l;
     }

@@ -3,7 +3,7 @@ extern crate enum_map;
 
 // XXX use pub mod to shut up unused warnings
 pub mod gene;
-pub mod instruction_lookup;
+pub mod lookup;
 pub mod processor;
 pub mod reaction;
 pub mod stack;

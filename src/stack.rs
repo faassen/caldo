@@ -110,6 +110,27 @@ impl Instruction {
             }
         }
     }
+
+    pub fn coordinates(&self) -> [f32; 3] {
+        match self {
+            Instruction::Add => [100., 10., 10.],
+            Instruction::Sub => [100., 10., 20.],
+            Instruction::Mul => [100., 10., 30.],
+            Instruction::Div => [100., 10., 40.],
+            Instruction::Dup => [100., 10., 50.],
+            Instruction::Drop => [100., 10., 60.],
+            Instruction::Swap => [100., 10., 70.],
+            Instruction::Over => [100., 10., 80.],
+            Instruction::Rot => [100., 10., 90.],
+            Instruction::Eq => [100., 10., 100.],
+            Instruction::Ne => [100., 10., 110.],
+            Instruction::Gt => [100., 10., 120.],
+            Instruction::Lt => [100., 10., 130.],
+            Instruction::And => [100., 10., 140.],
+            Instruction::Or => [100., 10., 150.],
+            Instruction::Not => [100., 10., 160.],
+        }
+    }
 }
 
 fn bool_to_nr(b: bool) -> u32 {
