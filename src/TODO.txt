@@ -1,0 +1,7 @@
+* Flatten instruction
+
+* Let instruction coordinate constants be in charge. Though this slows down
+  coordinate lookup somewhat due to conversion. But since we expect
+  to eventually compile programs, this shouldn't matter.
+
+

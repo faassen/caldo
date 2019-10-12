@@ -18,6 +18,9 @@ pub struct Triplet {
 impl Triplet {
     pub fn from_int(i: u32) -> Triplet {
         let fields = i >> 24 & 0xff;
+        // XXX this isn't correct yet. It needs to use
+        // another mask FF and declare all numbers noop above
+        // call. We need tests for that.
         let mode = match fields & 0x01 {
             0 => Mode::Number,
             1 => Mode::Instruction,
@@ -28,7 +31,7 @@ impl Triplet {
             r: (i >> 16 & 0xff) as u8,
             g: (i >> 8 & 0xff) as u8,
             b: (i & 0xff) as u8,
-            mode: mode
+            mode: mode,
         }
     }
 
