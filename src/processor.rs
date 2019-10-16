@@ -82,8 +82,8 @@ impl<'a> Processor<'a> {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ProcessorInstruction {
-    JF,
-    JB,
+    JF = 0x010100,
+    JB = 0x010110,
 }
 
 impl<'a> ProcessorInstruction {
@@ -111,10 +111,17 @@ impl<'a> ProcessorInstruction {
     }
 
     pub fn coordinates(&self) -> [f32; 3] {
-        match self {
-            ProcessorInstruction::JF => [10., 10., 10.],
-            ProcessorInstruction::JB => [10., 10., 20.],
-        }
+        let i = *self as u32;
+        return [
+            (i >> 16 & 0xff) as f32,
+            (i >> 8 & 0xff) as f32,
+            (i & 0xff) as f32,
+        ];
+
+        // match self {
+        //     ProcessorInstruction::JF => [10., 10., 10.],
+        //     ProcessorInstruction::JB => [10., 10., 20.],
+        // }
     }
 }
 
@@ -131,16 +138,16 @@ impl<'a> Instruction {
             Instruction::ProcessorInstruction(instruction) => instruction.execute(processor),
         }
     }
-    pub fn number(&self) -> u32 {
-        match self {
-            Instruction::StackInstruction(instruction) => {
-                coordinates_to_number(instruction.coordinates())
-            }
-            Instruction::ProcessorInstruction(instruction) => {
-                coordinates_to_number(instruction.coordinates())
-            }
-        }
-    }
+    // pub fn number(&self) -> u32 {
+    //     match self {
+    //         Instruction::StackInstruction(instruction) => {
+    //             coordinates_to_number(instruction.coordinates())
+    //         }
+    //         Instruction::ProcessorInstruction(instruction) => {
+    //             coordinates_to_number(instruction.coordinates())
+    //         }
+    //     }
+    // }
 }
 
 fn coordinates_to_number(c: [f32; 3]) -> u32 {
@@ -161,11 +168,11 @@ mod tests {
     use super::*;
 
     use crate::stack;
-    const ADD_NR: u32 = 0x01640A0A;
-    const SUB_NR: u32 = 0x01640A14;
-    const DUP_NR: u32 = 0x01640A32;
-    const JF_NR: u32 = 0x010A0A0A;
-    const JB_NR: u32 = 0x010A0A14;
+    const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
+    const SUB_NR: u32 = stack::Instruction::Sub as u32 | 0x01000000;
+    const DUP_NR: u32 = stack::Instruction::Dup as u32 | 0x01000000;
+    const JF_NR: u32 = ProcessorInstruction::JF as u32 | 0x01000000;
+    const JB_NR: u32 = ProcessorInstruction::JB as u32 | 0x01000000;
     fn instruction_lookup<'a>() -> lookup::Lookup<'a, Instruction> {
         let mut l = lookup::Lookup::<Instruction>::new();
 

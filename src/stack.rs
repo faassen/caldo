@@ -36,22 +36,22 @@ where
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Instruction {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Dup,
-    Drop,
-    Swap,
-    Over,
-    Rot,
-    Eq,
-    Ne,
-    Gt,
-    Lt,
-    And,
-    Or,
-    Not,
+    Add = 0x000100,
+    Sub = 0x000110,
+    Mul = 0x000120,
+    Div = 0x000130,
+    Dup = 0x000200,
+    Drop = 0x000210,
+    Swap = 0x000220,
+    Over = 0x000230,
+    Rot = 0x000240,
+    Eq = 0x000300,
+    Ne = 0x000310,
+    Gt = 0x000320,
+    Lt = 0x000330,
+    And = 0x000400,
+    Or = 0x000410,
+    Not = 0x000420,
 }
 
 impl Instruction {
@@ -112,24 +112,31 @@ impl Instruction {
     }
 
     pub fn coordinates(&self) -> [f32; 3] {
-        match self {
-            Instruction::Add => [100., 10., 10.],
-            Instruction::Sub => [100., 10., 20.],
-            Instruction::Mul => [100., 10., 30.],
-            Instruction::Div => [100., 10., 40.],
-            Instruction::Dup => [100., 10., 50.],
-            Instruction::Drop => [100., 10., 60.],
-            Instruction::Swap => [100., 10., 70.],
-            Instruction::Over => [100., 10., 80.],
-            Instruction::Rot => [100., 10., 90.],
-            Instruction::Eq => [100., 10., 100.],
-            Instruction::Ne => [100., 10., 110.],
-            Instruction::Gt => [100., 10., 120.],
-            Instruction::Lt => [100., 10., 130.],
-            Instruction::And => [100., 10., 140.],
-            Instruction::Or => [100., 10., 150.],
-            Instruction::Not => [100., 10., 160.],
-        }
+        let i = *self as u32;
+        return [
+            (i >> 16 & 0xff) as f32,
+            (i >> 8 & 0xff) as f32,
+            (i & 0xff) as f32,
+        ];
+
+        // match self {
+        //     Instruction::Add => [100., 10., 10.],
+        //     Instruction::Sub => [100., 10., 20.],
+        //     Instruction::Mul => [100., 10., 30.],
+        //     Instruction::Div => [100., 10., 40.],
+        //     Instruction::Dup => [100., 10., 50.],
+        //     Instruction::Drop => [100., 10., 60.],
+        //     Instruction::Swap => [100., 10., 70.],
+        //     Instruction::Over => [100., 10., 80.],
+        //     Instruction::Rot => [100., 10., 90.],
+        //     Instruction::Eq => [100., 10., 100.],
+        //     Instruction::Ne => [100., 10., 110.],
+        //     Instruction::Gt => [100., 10., 120.],
+        //     Instruction::Lt => [100., 10., 130.],
+        //     Instruction::And => [100., 10., 140.],
+        //     Instruction::Or => [100., 10., 150.],
+        //     Instruction::Not => [100., 10., 160.],
+        // }
     }
 }
 
