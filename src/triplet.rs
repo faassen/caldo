@@ -35,9 +35,6 @@ impl Triplet {
         }
     }
 
-    pub fn coordinates(&self) -> [f32; 3] {
-        return [self.r as f32, self.g as f32, self.b as f32];
-    }
 }
 
 #[cfg(test)]

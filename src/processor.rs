@@ -40,7 +40,7 @@ impl<'a> Processor<'a> {
                 self.stack.push(value);
             }
             Mode::Instruction => {
-                let instruction = context.instruction_lookup.find(&t.coordinates());
+                let instruction = context.instruction_lookup.find(value);
                 let success = instruction.execute(self);
                 match success {
                     None => {
@@ -110,13 +110,8 @@ impl<'a> ProcessorInstruction {
         }
     }
 
-    pub fn coordinates(&self) -> [f32; 3] {
-        let i = *self as u32;
-        return [
-            (i >> 16 & 0xff) as f32,
-            (i >> 8 & 0xff) as f32,
-            (i & 0xff) as f32,
-        ];
+    pub fn coordinates(&self) -> u32 {
+        *self as u32
     }
 }
 
@@ -136,7 +131,7 @@ impl<'a> Instruction {
 }
 
 impl lookup::Coordinates for Instruction {
-    fn coordinates(&self) -> [f32; 3] {
+    fn coordinates(&self) -> u32 {
         match self {
             Instruction::StackInstruction(instruction) => instruction.coordinates(),
             Instruction::ProcessorInstruction(instruction) => instruction.coordinates(),
