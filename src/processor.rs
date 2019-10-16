@@ -117,11 +117,6 @@ impl<'a> ProcessorInstruction {
             (i >> 8 & 0xff) as f32,
             (i & 0xff) as f32,
         ];
-
-        // match self {
-        //     ProcessorInstruction::JF => [10., 10., 10.],
-        //     ProcessorInstruction::JB => [10., 10., 20.],
-        // }
     }
 }
 
@@ -138,20 +133,6 @@ impl<'a> Instruction {
             Instruction::ProcessorInstruction(instruction) => instruction.execute(processor),
         }
     }
-    // pub fn number(&self) -> u32 {
-    //     match self {
-    //         Instruction::StackInstruction(instruction) => {
-    //             coordinates_to_number(instruction.coordinates())
-    //         }
-    //         Instruction::ProcessorInstruction(instruction) => {
-    //             coordinates_to_number(instruction.coordinates())
-    //         }
-    //     }
-    // }
-}
-
-fn coordinates_to_number(c: [f32; 3]) -> u32 {
-    (c[0] as u32 * 256 * 256) + (c[1] as u32 * 256) + (c[2] as u32)
 }
 
 impl lookup::Coordinates for Instruction {
