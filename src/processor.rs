@@ -13,7 +13,7 @@ pub struct Processor<'a> {
 
 pub struct ExecutionContext<'a> {
     max_stack_size: usize,
-    instruction_lookup: &'a lookup::Lookup<'a, Instruction>,
+    instruction_lookup: &'a lookup::Lookup<Instruction>,
 }
 
 impl<'a> Processor<'a> {
@@ -149,18 +149,18 @@ mod tests {
     const DUP_NR: u32 = stack::Instruction::Dup as u32 | 0x01000000;
     const JF_NR: u32 = ProcessorInstruction::JF as u32 | 0x01000000;
     const JB_NR: u32 = ProcessorInstruction::JB as u32 | 0x01000000;
-    fn instruction_lookup<'a>() -> lookup::Lookup<'a, Instruction> {
+    fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
         let mut l = lookup::Lookup::<Instruction>::new();
 
-        l.add(&Instruction::StackInstruction(stack::Instruction::Add))
+        l.add(Instruction::StackInstruction(stack::Instruction::Add))
             .expect("cannot add");
-        l.add(&Instruction::StackInstruction(stack::Instruction::Sub))
+        l.add(Instruction::StackInstruction(stack::Instruction::Sub))
             .expect("cannot add");
-        l.add(&Instruction::StackInstruction(stack::Instruction::Dup))
+        l.add(Instruction::StackInstruction(stack::Instruction::Dup))
             .expect("cannot add");
-        l.add(&Instruction::ProcessorInstruction(ProcessorInstruction::JF))
+        l.add(Instruction::ProcessorInstruction(ProcessorInstruction::JF))
             .expect("cannot add");
-        l.add(&Instruction::ProcessorInstruction(ProcessorInstruction::JB))
+        l.add(Instruction::ProcessorInstruction(ProcessorInstruction::JB))
             .expect("cannot add");
 
         return l;

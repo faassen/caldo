@@ -1,7 +1,19 @@
 * Flatten instruction
 
-* Let instruction coordinate constants be in charge. Though this slows down
-  coordinate lookup somewhat due to conversion. But since we expect
-  to eventually compile programs, this shouldn't matter.
+* An arena for genes?
+
+  A gene is:
+
+  * immutable.
+
+  * lives as long as its cell.
+
+  * can be moved to another cell.
+
+  * may be explicitly destroyed in a cell.
+
+ If we stored the genes in a generational arena, we can
+ reference ids all we like. Or should we instead use
+ Rc?
 
 

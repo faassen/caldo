@@ -474,3 +474,57 @@ Refactoring plan
 
 
 
+General Content Addressable Function Calls
+==========================================
+
+Any gene addressing, including a function call, can have multiple
+matches as the first instruction may be the same but later ones
+different.
+
+How is a program going to help distinguish things so that
+a call can be made?
+
+Do we want index based calls or content based calls?
+
+
+FFFFF
+3
+read
+aaaaa
+eq
+FFFFF - what if this is a different one?
+call
+
+if each gene has a unique, unpredictable id,
+things could work
+
+FFFFF
+gene < puts id on stack>
+3
+read <reads instruction 3 of this gene>
+
+
+FFFF
+gene
+3
+read
+dup
+88888
+eq
+call
+
+but if there are multiple genes at the same point, it's still impossible
+to reliably call one.
+
+or move one so that a processor is guaranteed to be on both genes,
+one moved into the new cell - no, this is possible if we can get the self
+id to compare with.
+
+SELF - puts self id on stack
+<code> GENE - looks up gene and places id onto stack.
+which gene is taken is random if multiple matches exist.
+
+Everything else interacts with gene id
+
+<id> CALL - calls id
+
