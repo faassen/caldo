@@ -88,7 +88,8 @@ impl<'a> Processor<'a> {
 pub enum ProcessorInstruction {
     JF = 0x010100,
     JB = 0x010110,
-    Call = 0x010200,
+    Lookup = 0x010120,
+    Call = 0x010130,
 }
 
 impl<'a> ProcessorInstruction {
@@ -112,6 +113,7 @@ impl<'a> ProcessorInstruction {
                 }
                 processor.jump(-(second as i32 + 1))
             }),
+            ProcessorInstruction::Lookup => processor.stack.pop().and_then(|first| Some(())),
             ProcessorInstruction::Call => processor
                 .stack
                 .pop()

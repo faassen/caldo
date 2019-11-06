@@ -82,6 +82,7 @@ mod tests {
     use crate::stack;
     const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
     const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
+    const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | 0x01000000;
     fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
         let mut l = lookup::Lookup::<Instruction>::new();
 
@@ -95,19 +96,30 @@ mod tests {
         return l;
     }
 
-    // #[test]
-    // fn test_call() {
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //     };
+    #[test]
+    fn test_call() {
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+        };
 
-    //     let gene = Gene::new(&[3, 4, ADD_NR]);
-    //     let mut g = Processor::new(&gene);
+        let gene1 = Gene::new(&[3, 4, ADD_NR]);
+        let gene2 = Gene::new(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR]);
 
-    //     g.execute_amount(&context, 3);
+        let mut rng =
+            rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let mut cell = Cell::new();
+        cell.add_gene(gene1, &mut rng);
+        cell.add_gene(gene2, &mut rng);
 
-    //     assert_eq!(g.stack, [7]);
-    //     assert_eq!(g.failures, 0);
-    // }
+        // the processor needs access to a gene id lookup
+        // facility and a way to switch the currently active
+        // gene.
+        // let mut p = Processor::new(&gene2, &cell);
+
+        // p.execute_amount(&context, 8);
+
+        // assert_eq!(p.stack, [12]);
+        // assert_eq!(p.failures, 0);
+    }
 }
