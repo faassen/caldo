@@ -43,7 +43,7 @@ impl<'a> Cell<'a> {
         let rc_gene = Rc::new(gene);
         self.genes.insert(id, rc_gene);
         let rc_handle = self.genes.get(&id).unwrap();
-        self.gene_lookup.add(Rc::clone(&rc_handle));
+        self.gene_lookup.add(Rc::clone(&rc_handle)).unwrap();
         // self.add_gene_lookup(&gene);
     }
 }
@@ -75,3 +75,39 @@ impl<'a> Cell<'a> {
 // find a gene by number of first instruction
 
 // if a gene is destroyed, how do we clear its processors?
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::processor::{ExecutionContext, Instruction, ProcessorInstruction};
+    use crate::stack;
+    const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
+    const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
+    fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
+        let mut l = lookup::Lookup::<Instruction>::new();
+
+        l.add(Instruction::StackInstruction(stack::Instruction::Add))
+            .expect("cannot add");
+        l.add(Instruction::ProcessorInstruction(
+            ProcessorInstruction::Call,
+        ))
+        .expect("cannot add");
+
+        return l;
+    }
+
+    // #[test]
+    // fn test_call() {
+    //     let context = ExecutionContext {
+    //         instruction_lookup: &instruction_lookup(),
+    //         max_stack_size: 1000,
+    //     };
+
+    //     let gene = Gene::new(&[3, 4, ADD_NR]);
+    //     let mut g = Processor::new(&gene);
+
+    //     g.execute_amount(&context, 3);
+
+    //     assert_eq!(g.stack, [7]);
+    //     assert_eq!(g.failures, 0);
+    // }
+}

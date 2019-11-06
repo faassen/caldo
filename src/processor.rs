@@ -6,14 +6,14 @@ use crate::triplet::{Mode, Triplet};
 
 pub struct Processor<'a> {
     gene: &'a Gene<'a>,
-    stack: Vec<u32>,
+    pub stack: Vec<u32>,
     pc: usize,
-    failures: u32,
+    pub failures: u32,
 }
 
 pub struct ExecutionContext<'a> {
-    max_stack_size: usize,
-    instruction_lookup: &'a lookup::Lookup<Instruction>,
+    pub max_stack_size: usize,
+    pub instruction_lookup: &'a lookup::Lookup<Instruction>,
 }
 
 impl<'a> Processor<'a> {
@@ -41,7 +41,7 @@ impl<'a> Processor<'a> {
             }
             Mode::Instruction => {
                 let instruction = context.instruction_lookup.find(value);
-                let success = instruction.execute(self);
+                let success = instruction.execute(self, context);
                 match success {
                     None => {
                         self.failures += 1;
@@ -78,16 +78,21 @@ impl<'a> Processor<'a> {
         self.pc = new_pc as usize;
         Some(())
     }
+
+    fn call(&mut self, gene_id: u32, context: &ExecutionContext) -> Option<()> {
+        Some(())
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ProcessorInstruction {
     JF = 0x010100,
     JB = 0x010110,
+    Call = 0x010200,
 }
 
 impl<'a> ProcessorInstruction {
-    pub fn execute(&self, processor: &mut Processor<'a>) -> Option<()> {
+    pub fn execute(&self, processor: &mut Processor<'a>, context: &ExecutionContext) -> Option<()> {
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
@@ -107,6 +112,10 @@ impl<'a> ProcessorInstruction {
                 }
                 processor.jump(-(second as i32 + 1))
             }),
+            ProcessorInstruction::Call => processor
+                .stack
+                .pop()
+                .and_then(|first| processor.call(first, context)),
         }
     }
 
@@ -122,10 +131,12 @@ pub enum Instruction {
 }
 
 impl<'a> Instruction {
-    pub fn execute(&self, processor: &mut Processor<'a>) -> Option<()> {
+    pub fn execute(&self, processor: &mut Processor<'a>, context: &ExecutionContext) -> Option<()> {
         match self {
             Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
-            Instruction::ProcessorInstruction(instruction) => instruction.execute(processor),
+            Instruction::ProcessorInstruction(instruction) => {
+                instruction.execute(processor, context)
+            }
         }
     }
 }
@@ -450,5 +461,4 @@ mod tests {
         assert_eq!(g.stack, [88, 66]);
         assert_eq!(g.failures, 1);
     }
-
 }
