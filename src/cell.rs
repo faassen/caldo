@@ -109,20 +109,25 @@ mod tests {
 
     #[test]
     fn test_call() {
+        let mut cell = Cell::new();
+        let mut rng =
+            rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let mut gene2_id;
+        {
+            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            let gene2 = cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+            gene2_id = gene2.id;
+        }
+
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            cell: &cell,
         };
+        let gene = cell.get_gene(gene2_id).unwrap();
+        let mut p = Processor::new(&gene);
 
-        let mut rng =
-            rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        let mut cell = Cell::new();
-        let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-        let gene2 = cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
-
-        // let mut p = Processor::new(&gene2, &cell);
-
-        // p.execute_amount(&context, 8);
+        p.execute_amount(&context, 8);
 
         // assert_eq!(p.stack, [12]);
         // assert_eq!(p.failures, 0);
