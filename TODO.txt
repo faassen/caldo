@@ -17,3 +17,10 @@
  Rc?
 
 
+For the call behavior we need:
+
+* a way to get the gene_id for a particular number.
+
+* a way to get the gene object belonging to a gene_id.
+
+* this can then modify the processor's gene stack.
