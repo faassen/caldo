@@ -4,7 +4,7 @@ use crate::processor::Processor;
 use std::collections::HashMap;
 extern crate rand_pcg;
 
-use rand::{Rng, SeedableRng};
+use rand::Rng;
 use std::rc::Rc;
 
 // a world owns all cells, and all genes too
@@ -28,6 +28,16 @@ impl<'a> Cell<'a> {
             processors: Vec::new(),
         }
     }
+
+    fn add_gene<R: Rng>(&mut self, code: &'a [u32], rng: &mut R) {
+        let id = self.create_gene_id(rng);
+        let gene = Gene { id, code };
+        let rc_gene = Rc::new(gene);
+        self.genes.insert(id, rc_gene);
+        let rc_handle = self.genes.get(&id).unwrap();
+        self.gene_lookup.add(Rc::clone(&rc_handle)).unwrap();
+    }
+
     fn create_gene_id<R: Rng>(&self, rng: &mut R) -> u32 {
         loop {
             let id: u32 = rng.gen();
@@ -38,13 +48,12 @@ impl<'a> Cell<'a> {
         }
     }
 
-    fn add_gene<R: Rng>(&mut self, gene: Gene<'a>, rng: &mut R) {
-        let id = self.create_gene_id(rng);
-        let rc_gene = Rc::new(gene);
-        self.genes.insert(id, rc_gene);
-        let rc_handle = self.genes.get(&id).unwrap();
-        self.gene_lookup.add(Rc::clone(&rc_handle)).unwrap();
-        // self.add_gene_lookup(&gene);
+    fn lookup_gene_id(&self, coordinates: u32) -> u32 {
+        self.gene_lookup.find(coordinates).id
+    }
+
+    fn get_gene(&self, gene_id: u32) -> Option<Rc<Gene>> {
+        self.genes.get(&gene_id).map(|gene| Rc::clone(gene))
     }
 }
 
@@ -80,6 +89,7 @@ mod tests {
     use super::*;
     use crate::processor::{ExecutionContext, Instruction, ProcessorInstruction};
     use crate::stack;
+    use rand::SeedableRng;
     const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
     const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
     const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | 0x01000000;
@@ -103,14 +113,11 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let gene1 = Gene::new(&[3, 4, ADD_NR]);
-        let gene2 = Gene::new(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR]);
-
         let mut rng =
             rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let mut cell = Cell::new();
-        cell.add_gene(gene1, &mut rng);
-        cell.add_gene(gene2, &mut rng);
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
 
         // the processor needs access to a gene id lookup
         // facility and a way to switch the currently active

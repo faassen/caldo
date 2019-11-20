@@ -2,13 +2,13 @@ use crate::lookup::Coordinates;
 use std::rc::Rc;
 
 pub struct Gene<'a> {
-    // id: u32, // unique per cell
+    pub id: u32,
     pub code: &'a [u32],
 }
 
 impl<'a> Gene<'a> {
-    pub fn new(code: &[u32]) -> Gene {
-        return Gene { code: code };
+    pub fn new(id: u32, code: &[u32]) -> Gene {
+        return Gene { id: id, code: code };
     }
 }
 
