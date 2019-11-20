@@ -1,4 +1,4 @@
-use enum_map::EnumMap;
+use enum_map::{enum_map, Enum, EnumMap};
 
 #[derive(Debug, Enum, Clone, Copy)]
 pub enum Molecule {
@@ -270,5 +270,4 @@ mod tests {
         assert_eq!(pool.molecule_amounts[Molecule::G], 20000);
         assert_eq!(pool.molecule_amounts[Molecule::O], 0);
     }
-
 }
