@@ -17,7 +17,7 @@ struct World<'a> {
 pub struct Cell<'a> {
     genes: HashMap<u32, Rc<Gene<'a>>>,
     gene_lookup: lookup::Lookup<Rc<Gene<'a>>>,
-    processors: Vec<Processor<'a>>,
+    // processors: Vec<Processor<'a>>,
 }
 
 impl<'a> Cell<'a> {
@@ -25,17 +25,18 @@ impl<'a> Cell<'a> {
         Cell {
             genes: HashMap::new(),
             gene_lookup: lookup::Lookup::new(),
-            processors: Vec::new(),
+            // processors: Vec::new(),
         }
     }
 
-    fn add_gene<R: Rng>(&mut self, code: &'a [u32], rng: &mut R) {
+    fn add_gene<R: Rng>(&mut self, code: &'a [u32], rng: &mut R) -> Rc<Gene> {
         let id = self.create_gene_id(rng);
         let gene = Gene { id, code };
         let rc_gene = Rc::new(gene);
         self.genes.insert(id, rc_gene);
         let rc_handle = self.genes.get(&id).unwrap();
         self.gene_lookup.add(Rc::clone(&rc_handle)).unwrap();
+        Rc::clone(&rc_handle)
     }
 
     fn create_gene_id<R: Rng>(&self, rng: &mut R) -> u32 {
@@ -116,12 +117,9 @@ mod tests {
         let mut rng =
             rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let mut cell = Cell::new();
-        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-        cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+        let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+        let gene2 = cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
 
-        // the processor needs access to a gene id lookup
-        // facility and a way to switch the currently active
-        // gene.
         // let mut p = Processor::new(&gene2, &cell);
 
         // p.execute_amount(&context, 8);
