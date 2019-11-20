@@ -5,8 +5,10 @@ use crate::stack;
 use crate::stack::{nr_to_bool, Stack};
 use crate::triplet::{Mode, Triplet};
 
+use std::rc::Rc;
+
 pub struct Processor<'a> {
-    gene: &'a Gene<'a>,
+    gene: Rc<Gene<'a>>,
     pub stack: Vec<u32>,
     pub call_stack: Vec<u32>,
     pc: usize,
@@ -20,9 +22,9 @@ pub struct ExecutionContext<'a> {
 }
 
 impl<'a> Processor<'a> {
-    pub fn new(gene: &'a Gene<'a>) -> Processor<'a> {
+    pub fn new(gene: Rc<Gene<'a>>) -> Processor<'a> {
         return Processor {
-            gene,
+            gene: Rc::clone(&gene),
             stack: vec![],
             call_stack: vec![],
             pc: 0,
@@ -85,8 +87,9 @@ impl<'a> Processor<'a> {
 
     fn call(&mut self, gene_id: u32, context: &'a ExecutionContext) -> Option<()> {
         self.call_stack.push(self.gene.id);
+        print!("Gene id: {}\n", gene_id);
         // XXX cannot safely unwrap if genes can be removed
-        // self.gene = &context.cell.get_gene(gene_id).unwrap();
+        self.gene = Rc::clone(&context.cell.get_gene(gene_id).unwrap());
         self.pc = 0;
         Some(())
     }
@@ -206,8 +209,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[3, 4, ADD_NR]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[3, 4, ADD_NR]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 3);
 
@@ -224,8 +227,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[3, 4, ADD_NR, 6, SUB_NR]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[3, 4, ADD_NR, 6, SUB_NR]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -242,8 +245,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[3, 4, ADD_NR]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[3, 4, ADD_NR]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 6);
 
@@ -267,8 +270,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[3, 4, ADD_NR + 1, 6, SUB_NR - 1]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -285,8 +288,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[4, ADD_NR]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[4, ADD_NR]));
+        let mut g = Processor::new(gene);
         g.execute_amount(&context, 2);
 
         assert_eq!(g.stack, []);
@@ -302,8 +305,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[1, 2, 3, 4, 5]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[1, 2, 3, 4, 5]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -326,8 +329,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -349,8 +352,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[1, 1, JF_NR, 66, 77]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[1, 1, JF_NR, 66, 77]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 4);
 
@@ -367,8 +370,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[1, 2, JF_NR, 66, 77, 88]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[1, 2, JF_NR, 66, 77, 88]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 4);
 
@@ -384,8 +387,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[1, 200, JF_NR, 66, 88]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[1, 200, JF_NR, 66, 88]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 4);
 
@@ -402,8 +405,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[0, 1, JF_NR, 66, 88]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[0, 1, JF_NR, 66, 88]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 4);
 
@@ -419,8 +422,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[1, 0, JF_NR, 66, 88]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[1, 0, JF_NR, 66, 88]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 4);
 
@@ -436,8 +439,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[88, 1, 3, JB_NR, 66]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[88, 1, 3, JB_NR, 66]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -454,8 +457,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[88, 0, 3, JB_NR, 66]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[88, 0, 3, JB_NR, 66]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -472,8 +475,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[88, 1, 1, JB_NR, 66]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -489,8 +492,8 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[88, 1, 0, JB_NR, 66]);
-        let mut g = Processor::new(&gene);
+        let gene = Rc::new(Gene::new(0, &[88, 1, 0, JB_NR, 66]));
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 
@@ -506,9 +509,9 @@ mod tests {
             cell: &cell,
         };
 
-        let gene = Gene::new(0, &[88, 1, 100, JB_NR, 66]);
+        let gene = Rc::new(Gene::new(0, &[88, 1, 100, JB_NR, 66]));
 
-        let mut g = Processor::new(&gene);
+        let mut g = Processor::new(gene);
 
         g.execute_amount(&context, 5);
 

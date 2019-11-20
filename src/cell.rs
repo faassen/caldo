@@ -108,28 +108,55 @@ mod tests {
     }
 
     #[test]
-    fn test_call() {
+    fn test_gene_id() {
         let mut cell = Cell::new();
         let mut rng =
             rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        let gene2_id;
+        let gene1_id;
         {
             let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-            let gene2 = cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+            gene1_id = gene1.id;
+        }
+        let gene2_id;
+        {
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
             gene2_id = gene2.id;
         }
+        let gene1 = cell.get_gene(gene1_id).unwrap();
+        assert_eq!(gene1.id, gene1_id);
 
-        let context = ExecutionContext {
-            instruction_lookup: &instruction_lookup(),
-            max_stack_size: 1000,
-            cell: &cell,
-        };
-        let gene = cell.get_gene(gene2_id).unwrap();
-        let mut p = Processor::new(&gene);
+        let gene2 = cell.get_gene(gene2_id).unwrap();
+        assert_eq!(gene2.id, gene2_id);
 
-        p.execute_amount(&context, 8);
+        let lookup_gene_id = cell.lookup_gene_id(3);
+        assert_eq!(gene1_id, lookup_gene_id);
 
-        // assert_eq!(p.stack, [12]);
-        // assert_eq!(p.failures, 0);
+        let lookup_gene_id = cell.lookup_gene_id(5);
+        assert_eq!(gene2_id, lookup_gene_id);
     }
+    // #[test]
+    // fn test_call() {
+    //     let mut cell = Cell::new();
+    //     let mut rng =
+    //         rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    //     let gene2_id;
+    //     {
+    //         let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+    //         let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+    //         gene2_id = gene2.id;
+    //     }
+
+    //     let context = ExecutionContext {
+    //         instruction_lookup: &instruction_lookup(),
+    //         max_stack_size: 1000,
+    //         cell: &cell,
+    //     };
+    //     let gene = cell.get_gene(gene2_id).unwrap();
+    //     let mut p = Processor::new(gene);
+
+    //     p.execute_amount(&context, 9);
+
+    //     // assert_eq!(p.stack, [12]);
+    //     // assert_eq!(p.failures, 0);
+    // }
 }
