@@ -49,11 +49,11 @@ impl<'a> Cell<'a> {
         }
     }
 
-    fn lookup_gene_id(&self, coordinates: u32) -> u32 {
+    pub fn lookup_gene_id(&self, coordinates: u32) -> u32 {
         self.gene_lookup.find(coordinates).id
     }
 
-    fn get_gene(&self, gene_id: u32) -> Option<Rc<Gene>> {
+    pub fn get_gene(&self, gene_id: u32) -> Option<Rc<Gene>> {
         self.genes.get(&gene_id).map(|gene| Rc::clone(gene))
     }
 }
@@ -112,7 +112,7 @@ mod tests {
         let mut cell = Cell::new();
         let mut rng =
             rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        let mut gene2_id;
+        let gene2_id;
         {
             let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
             let gene2 = cell.add_gene(&[3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
