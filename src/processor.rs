@@ -7,7 +7,6 @@ use crate::triplet::{Mode, Triplet};
 
 pub struct Processor<'a> {
     gene: &'a Gene<'a>,
-    cell: &'a Cell<'a>,
     pub stack: Vec<u32>,
     pc: usize,
     pub failures: u32,
@@ -19,10 +18,9 @@ pub struct ExecutionContext<'a> {
 }
 
 impl<'a> Processor<'a> {
-    pub fn new(gene: &'a Gene<'a>, cell: &'a Cell<'a>) -> Processor<'a> {
+    pub fn new(gene: &'a Gene<'a>) -> Processor<'a> {
         return Processor {
             gene,
-            cell,
             stack: vec![],
             pc: 0,
             failures: 0,
@@ -188,9 +186,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 3);
 
@@ -205,9 +202,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[3, 4, ADD_NR, 6, SUB_NR]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -222,9 +218,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 6);
 
@@ -246,9 +241,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -263,9 +257,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[4, ADD_NR]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
         g.execute_amount(&context, 2);
 
         assert_eq!(g.stack, []);
@@ -279,9 +272,8 @@ mod tests {
             max_stack_size: 4,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[1, 2, 3, 4, 5]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -302,9 +294,8 @@ mod tests {
             max_stack_size: 4,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -324,9 +315,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[1, 1, JF_NR, 66, 77]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -341,9 +331,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[1, 2, JF_NR, 66, 77, 88]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -357,9 +346,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[1, 200, JF_NR, 66, 88]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -374,9 +362,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[0, 1, JF_NR, 66, 88]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -390,9 +377,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[1, 0, JF_NR, 66, 88]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 4);
 
@@ -406,9 +392,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[88, 1, 3, JB_NR, 66]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -423,9 +408,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[88, 0, 3, JB_NR, 66]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -440,9 +424,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -456,9 +439,8 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[88, 1, 0, JB_NR, 66]);
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
@@ -472,10 +454,9 @@ mod tests {
             max_stack_size: 1000,
         };
 
-        let cell = Cell::new();
         let gene = Gene::new(0, &[88, 1, 100, JB_NR, 66]);
 
-        let mut g = Processor::new(&gene, &cell);
+        let mut g = Processor::new(&gene);
 
         g.execute_amount(&context, 5);
 
