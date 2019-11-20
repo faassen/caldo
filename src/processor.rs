@@ -177,13 +177,15 @@ impl lookup::Coordinates for Instruction {
 #[cfg(test)]
 mod tests {
     use super::*;
-
     use crate::stack;
+    use rand::SeedableRng;
     const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
     const SUB_NR: u32 = stack::Instruction::Sub as u32 | 0x01000000;
     const DUP_NR: u32 = stack::Instruction::Dup as u32 | 0x01000000;
     const JF_NR: u32 = ProcessorInstruction::JF as u32 | 0x01000000;
     const JB_NR: u32 = ProcessorInstruction::JB as u32 | 0x01000000;
+    const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
+    const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | 0x01000000;
     fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
         let mut l = lookup::Lookup::<Instruction>::new();
 
@@ -197,6 +199,14 @@ mod tests {
             .expect("cannot add");
         l.add(Instruction::ProcessorInstruction(ProcessorInstruction::JB))
             .expect("cannot add");
+        l.add(Instruction::ProcessorInstruction(
+            ProcessorInstruction::Lookup,
+        ))
+        .expect("cannot add");
+        l.add(Instruction::ProcessorInstruction(
+            ProcessorInstruction::Call,
+        ))
+        .expect("cannot add");
 
         return l;
     }
@@ -517,5 +527,31 @@ mod tests {
 
         assert_eq!(g.stack, [88, 66]);
         assert_eq!(g.failures, 1);
+    }
+
+    #[test]
+    fn test_call() {
+        let mut cell = Cell::new();
+        let mut rng =
+            rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let gene2_id;
+        {
+            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+            gene2_id = gene2.id;
+        }
+
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene2_id).unwrap();
+        let mut p = Processor::new(gene);
+
+        p.execute_amount(&context, 9);
+
+        // assert_eq!(p.stack, [12]);
+        // assert_eq!(p.failures, 0);
     }
 }

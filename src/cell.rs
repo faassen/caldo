@@ -29,7 +29,7 @@ impl<'a> Cell<'a> {
         }
     }
 
-    fn add_gene<R: Rng>(&mut self, code: &'a [u32], rng: &mut R) -> Rc<Gene> {
+    pub fn add_gene<R: Rng>(&mut self, code: &'a [u32], rng: &mut R) -> Rc<Gene> {
         let id = self.create_gene_id(rng);
         let gene = Gene { id, code };
         let rc_gene = Rc::new(gene);
@@ -88,24 +88,7 @@ impl<'a> Cell<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::processor::{ExecutionContext, Instruction, ProcessorInstruction};
-    use crate::stack;
     use rand::SeedableRng;
-    const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
-    const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
-    const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | 0x01000000;
-    fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
-        let mut l = lookup::Lookup::<Instruction>::new();
-
-        l.add(Instruction::StackInstruction(stack::Instruction::Add))
-            .expect("cannot add");
-        l.add(Instruction::ProcessorInstruction(
-            ProcessorInstruction::Call,
-        ))
-        .expect("cannot add");
-
-        return l;
-    }
 
     #[test]
     fn test_gene_id() {
@@ -114,12 +97,12 @@ mod tests {
             rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         let gene1_id;
         {
-            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            let gene1 = cell.add_gene(&[3, 4], &mut rng);
             gene1_id = gene1.id;
         }
         let gene2_id;
         {
-            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+            let gene2 = cell.add_gene(&[5, 3], &mut rng);
             gene2_id = gene2.id;
         }
         let gene1 = cell.get_gene(gene1_id).unwrap();
@@ -134,29 +117,4 @@ mod tests {
         let lookup_gene_id = cell.lookup_gene_id(5);
         assert_eq!(gene2_id, lookup_gene_id);
     }
-    // #[test]
-    // fn test_call() {
-    //     let mut cell = Cell::new();
-    //     let mut rng =
-    //         rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-    //     let gene2_id;
-    //     {
-    //         let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-    //         let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
-    //         gene2_id = gene2.id;
-    //     }
-
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene2_id).unwrap();
-    //     let mut p = Processor::new(gene);
-
-    //     p.execute_amount(&context, 9);
-
-    //     // assert_eq!(p.stack, [12]);
-    //     // assert_eq!(p.failures, 0);
-    // }
 }
