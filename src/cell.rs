@@ -14,14 +14,14 @@ struct World<'a> {
     genes: HashMap<u32, Gene<'a>>,
 }
 
-struct Cell<'a> {
+pub struct Cell<'a> {
     genes: HashMap<u32, Rc<Gene<'a>>>,
     gene_lookup: lookup::Lookup<Rc<Gene<'a>>>,
     processors: Vec<Processor<'a>>,
 }
 
 impl<'a> Cell<'a> {
-    fn new() -> Cell<'a> {
+    pub fn new() -> Cell<'a> {
         Cell {
             genes: HashMap::new(),
             gene_lookup: lookup::Lookup::new(),
