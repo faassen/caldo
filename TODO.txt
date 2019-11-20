@@ -24,3 +24,14 @@ For the call behavior we need:
 * a way to get the gene object belonging to a gene_id.
 
 * this can then modify the processor's gene stack.
+
+
+An arena of cells.
+
+An arena of processors per cell. Or an arena of processors?
+
+An arena of genes per cell.
+
+How do I make the tests work if we don't have an arena.
+
+How do I even access the arena?
