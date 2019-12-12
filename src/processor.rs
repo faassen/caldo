@@ -10,7 +10,7 @@ use std::rc::Rc;
 pub struct Processor<'a> {
     gene: Rc<Gene<'a>>,
     pub stack: Vec<u32>,
-    pub call_stack: Vec<u32>,
+    pub call_stack: Vec<(u32, usize)>,
     pc: usize,
     pub failures: u32,
 }
@@ -36,10 +36,8 @@ impl<'a> Processor<'a> {
         let code = self.gene.code;
 
         let value = code[self.pc];
+        // now increase pc
         self.pc += 1;
-        if self.pc >= code.len() {
-            self.pc = 0;
-        }
         let t = Triplet::from_int(value);
         match t.mode {
             Mode::Number => {
@@ -56,8 +54,24 @@ impl<'a> Processor<'a> {
                 }
             }
             Mode::Call => {}
-            Mode::Noop => {
-                return;
+            Mode::Noop => {}
+        }
+
+        // at the end
+        if self.pc >= code.len() {
+            let top = self.call_stack.pop();
+            match top {
+                Some((gene_id, return_pc)) => {
+                    // return to calling gene
+                    print!("We are here {} {}\n", gene_id, return_pc);
+                    // XXX must check for gene_id being valid
+                    self.gene = context.cell.get_gene(gene_id).unwrap();
+                    self.pc = return_pc + 1;
+                }
+                None => {
+                    // go back to start
+                    self.pc = 0;
+                }
             }
         }
         self.shrink_stack_on_overflow(context);
@@ -86,9 +100,8 @@ impl<'a> Processor<'a> {
     }
 
     fn call(&mut self, gene_id: u32, context: &'a ExecutionContext) -> Option<()> {
-        self.call_stack.push(self.gene.id);
-        print!("Gene id: {}\n", gene_id);
-        // XXX cannot safely unwrap if genes can be removed
+        self.call_stack.push((self.gene.id, self.pc));
+        // XXX cannot safely unwrap here because gene id could be anything
         self.gene = Rc::clone(&context.cell.get_gene(gene_id).unwrap());
         self.pc = 0;
         Some(())
@@ -530,14 +543,19 @@ mod tests {
     }
 
     #[test]
-    fn test_call() {
+    fn test_lookup() {
         let mut cell = Cell::new();
         let mut rng =
             rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-        let gene2_id;
+        let gene1_id;
         {
             let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 5, ADD_NR], &mut rng);
+            gene1_id = gene1.id;
+        }
+
+        let gene2_id;
+        {
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR], &mut rng);
             gene2_id = gene2.id;
         }
 
@@ -549,9 +567,40 @@ mod tests {
         let gene = cell.get_gene(gene2_id).unwrap();
         let mut p = Processor::new(gene);
 
-        p.execute_amount(&context, 9);
-
-        // assert_eq!(p.stack, [12]);
-        // assert_eq!(p.failures, 0);
+        p.execute_amount(&context, 3);
+        assert_eq!(p.stack, [5, gene1_id]);
     }
+
+    // #[test]
+    // fn test_call() {
+    //     let mut cell = Cell::new();
+    //     let mut rng =
+    //         rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+
+    //     let gene1_id;
+    //     {
+    //         let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+    //         gene1_id = gene1.id;
+    //     }
+
+    //     let gene2_id;
+    //     {
+    //         let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4, ADD_NR], &mut rng);
+    //         gene2_id = gene2.id;
+    //     }
+    //     print!("Gene 1 id {}\n", gene1_id);
+    //     print!("Gene 2 id {}\n", gene2_id);
+    //     let context = ExecutionContext {
+    //         instruction_lookup: &instruction_lookup(),
+    //         max_stack_size: 1000,
+    //         cell: &cell,
+    //     };
+    //     let gene = cell.get_gene(gene2_id).unwrap();
+    //     let mut p = Processor::new(gene);
+
+    //     p.execute_amount(&context, 9);
+
+    //     assert_eq!(p.stack, [5, 11]);
+    //     assert_eq!(p.failures, 0);
+    // }
 }
