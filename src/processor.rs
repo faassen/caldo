@@ -64,7 +64,6 @@ impl<'a> Processor<'a> {
             match top {
                 Some((gene_id, return_pc)) => {
                     // return to calling gene
-                    print!("We are here {} {}\n", gene_id, return_pc);
                     // XXX must check for gene_id being valid
                     self.gene = context.cell.get_gene(gene_id).unwrap();
                     self.pc = return_pc;
@@ -601,8 +600,6 @@ mod tests {
             let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
             gene2_id = gene2.id;
         }
-        print!("Gene 1 id {}\n", gene1_id);
-        print!("Gene 2 id {}\n", gene2_id);
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
@@ -641,8 +638,7 @@ mod tests {
             let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
             gene2_id = gene2.id;
         }
-        print!("Gene 1 id {}\n", gene1_id);
-        print!("Gene 2 id {}\n", gene2_id);
+
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
@@ -654,6 +650,46 @@ mod tests {
         p.execute_amount(&context, 8);
 
         assert_eq!(p.stack, [5, 7, 4]);
+        assert_eq!(p.failures, 0);
+    }
+
+    #[test]
+    fn test_call_at_end() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+
+        let gene1_id;
+        {
+            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            gene1_id = gene1.id;
+        }
+
+        let gene2_id;
+        {
+            // 5
+            // 5 3
+            // 5 <NR>
+            // 5
+            // 5 3
+            // 5 3 4
+            // 5 7
+            // should wrap again to start
+            // 5 7 5
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
+            gene2_id = gene2.id;
+        }
+
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene2_id).unwrap();
+        let mut p = Processor::new(gene);
+
+        p.execute_amount(&context, 8);
+
+        assert_eq!(p.stack, [5, 7, 5]);
         assert_eq!(p.failures, 0);
     }
 }
