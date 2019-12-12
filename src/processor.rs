@@ -38,6 +38,7 @@ impl<'a> Processor<'a> {
         let value = code[self.pc];
         // now increase pc
         self.pc += 1;
+
         let t = Triplet::from_int(value);
         match t.mode {
             Mode::Number => {
@@ -66,7 +67,7 @@ impl<'a> Processor<'a> {
                     print!("We are here {} {}\n", gene_id, return_pc);
                     // XXX must check for gene_id being valid
                     self.gene = context.cell.get_gene(gene_id).unwrap();
-                    self.pc = return_pc + 1;
+                    self.pc = return_pc;
                 }
                 None => {
                     // go back to start
@@ -100,7 +101,14 @@ impl<'a> Processor<'a> {
     }
 
     fn call(&mut self, gene_id: u32, context: &'a ExecutionContext) -> Option<()> {
-        self.call_stack.push((self.gene.id, self.pc));
+        let return_pc = {
+            if self.pc >= self.gene.code.len() {
+                0
+            } else {
+                self.pc
+            }
+        };
+        self.call_stack.push((self.gene.id, return_pc));
         // XXX cannot safely unwrap here because gene id could be anything
         self.gene = Rc::clone(&context.cell.get_gene(gene_id).unwrap());
         self.pc = 0;
@@ -590,9 +598,7 @@ mod tests {
             // 5 <NR>
             // 5 3 4
             // 5 7
-            // 5 7 4
-            // 5 11
-            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4, ADD_NR], &mut rng);
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
             gene2_id = gene2.id;
         }
         print!("Gene 1 id {}\n", gene1_id);
@@ -611,41 +617,43 @@ mod tests {
         assert_eq!(p.failures, 0);
     }
 
-    // #[test]
-    // fn test_call_and_return() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+    #[test]
+    fn test_call_and_return() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-    //     let gene1_id;
-    //     {
-    //         let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-    //         gene1_id = gene1.id;
-    //     }
+        let gene1_id;
+        {
+            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            gene1_id = gene1.id;
+        }
 
-    //     let gene2_id;
-    //     {
-    //         // 5 3
-    //         // 5 <NR>
-    //         // 5 3 4
-    //         // 5 7
-    //         // 5 7 4
-    //         // 5 11
-    //         let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4, ADD_NR], &mut rng);
-    //         gene2_id = gene2.id;
-    //     }
-    //     print!("Gene 1 id {}\n", gene1_id);
-    //     print!("Gene 2 id {}\n", gene2_id);
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene2_id).unwrap();
-    //     let mut p = Processor::new(gene);
+        let gene2_id;
+        {
+            // 5
+            // 5 3
+            // 5 <NR>
+            // 5
+            // 5 3
+            // 5 3 4
+            // 5 7
+            // 5 7 4
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
+            gene2_id = gene2.id;
+        }
+        print!("Gene 1 id {}\n", gene1_id);
+        print!("Gene 2 id {}\n", gene2_id);
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene2_id).unwrap();
+        let mut p = Processor::new(gene);
 
-    //     p.execute_amount(&context, 9);
+        p.execute_amount(&context, 8);
 
-    //     assert_eq!(p.stack, [5, 11]);
-    //     assert_eq!(p.failures, 0);
-    // }
+        assert_eq!(p.stack, [5, 7, 4]);
+        assert_eq!(p.failures, 0);
+    }
 }
