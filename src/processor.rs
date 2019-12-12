@@ -100,18 +100,19 @@ impl<'a> Processor<'a> {
     }
 
     fn call(&mut self, gene_id: u32, context: &'a ExecutionContext) -> Option<()> {
-        let return_pc = {
-            if self.pc >= self.gene.code.len() {
-                0
-            } else {
-                self.pc
-            }
-        };
-        self.call_stack.push((self.gene.id, return_pc));
-        // XXX cannot safely unwrap here because gene id could be anything
-        self.gene = Rc::clone(&context.cell.get_gene(gene_id).unwrap());
-        self.pc = 0;
-        Some(())
+        context.cell.get_gene(gene_id).and_then(|gene| {
+            let return_pc = {
+                if self.pc >= self.gene.code.len() {
+                    0
+                } else {
+                    self.pc
+                }
+            };
+            self.call_stack.push((self.gene.id, return_pc));
+            self.gene = Rc::clone(&gene);
+            self.pc = 0;
+            Some(())
+        })
     }
 }
 
@@ -608,6 +609,27 @@ mod tests {
 
         assert_eq!(p.stack, [5, 7]);
         assert_eq!(p.failures, 0);
+    }
+
+    #[test]
+    fn test_call_impossible_gene_id() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+
+        let gene = cell.add_gene(&[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
+        let gene_id = gene.id;
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene_id).unwrap();
+        let mut p = Processor::new(gene);
+
+        p.execute_amount(&context, 5);
+
+        assert_eq!(p.stack, [7]);
+        assert_eq!(p.failures, 1);
     }
 
     #[test]
