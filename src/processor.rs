@@ -199,6 +199,9 @@ mod tests {
     const JB_NR: u32 = ProcessorInstruction::JB as u32 | 0x01000000;
     const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
     const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | 0x01000000;
+
+    const SEED: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
     fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
         let mut l = lookup::Lookup::<Instruction>::new();
 
@@ -545,8 +548,7 @@ mod tests {
     #[test]
     fn test_lookup() {
         let mut cell = Cell::new();
-        let mut rng =
-            rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         let gene1_id;
         {
             let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
@@ -571,11 +573,48 @@ mod tests {
         assert_eq!(p.stack, [5, gene1_id]);
     }
 
+    #[test]
+    fn test_call_without_return() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+
+        let gene1_id;
+        {
+            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            gene1_id = gene1.id;
+        }
+
+        let gene2_id;
+        {
+            // 5 3
+            // 5 <NR>
+            // 5 3 4
+            // 5 7
+            // 5 7 4
+            // 5 11
+            let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4, ADD_NR], &mut rng);
+            gene2_id = gene2.id;
+        }
+        print!("Gene 1 id {}\n", gene1_id);
+        print!("Gene 2 id {}\n", gene2_id);
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene2_id).unwrap();
+        let mut p = Processor::new(gene);
+
+        p.execute_amount(&context, 7);
+
+        assert_eq!(p.stack, [5, 7]);
+        assert_eq!(p.failures, 0);
+    }
+
     // #[test]
-    // fn test_call() {
+    // fn test_call_and_return() {
     //     let mut cell = Cell::new();
-    //     let mut rng =
-    //         rand_pcg::Pcg32::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
     //     let gene1_id;
     //     {
@@ -585,6 +624,12 @@ mod tests {
 
     //     let gene2_id;
     //     {
+    //         // 5 3
+    //         // 5 <NR>
+    //         // 5 3 4
+    //         // 5 7
+    //         // 5 7 4
+    //         // 5 11
     //         let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR, 4, ADD_NR], &mut rng);
     //         gene2_id = gene2.id;
     //     }
