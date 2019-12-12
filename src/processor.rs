@@ -585,11 +585,7 @@ mod tests {
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        let gene1_id;
-        {
-            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-            gene1_id = gene1.id;
-        }
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
 
         let gene2_id;
         {
@@ -619,11 +615,7 @@ mod tests {
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        let gene1_id;
-        {
-            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-            gene1_id = gene1.id;
-        }
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
 
         let gene2_id;
         {
@@ -658,11 +650,7 @@ mod tests {
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        let gene1_id;
-        {
-            let gene1 = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-            gene1_id = gene1.id;
-        }
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
 
         let gene2_id;
         {
