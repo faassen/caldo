@@ -1,0 +1,54 @@
+What we would like
+==================
+
+Invocation
+----------
+
+* Invoke instruction.
+
+* Look up gene, invoke right away.
+
+* Look up gene from top of stack, invoke right away.
+
+* Look up gene from top of stack, place gene id on top of stack.
+
+Genes and instructions are in a different namespace.
+
+Input queues are also addressable, in the same namespace as genes. When an
+input queue is invoked, the first item in the queue is placed on the
+processor's stack. When an output queue is invoked, the top of the stack is
+placed on the output queue.
+
+Compilation
+-----------
+
+Before a gene can be invoked, it needs to be compiled first. The compilation
+turns instruction numbers into fixed instructions. The compile can have
+a pertubation vector that changes how lookups world.
+
+When addressing a gene for reading or construction, the original is addressed,
+not the compiled version.
+
+When invoking a gene, the compiled version is addressed.
+
+Cell
+----
+
+A cell has a shared pool of molecules. All genes use this pool.
+
+Execution uses ATP. Instructions use I. Maintaining the barrier
+uses B.
+
+The barrier erodes over time. If it's not maintained, the cell will
+die.
+
+If no ATP is available for running instructions, execution will halt.
+
+A cell may communicate with the outside world. An input queue can
+be used to get information about the environment. It also can be connected
+to an output queue with the same lookup in another neighboring cell.
+
+A cell may also take up materials from the outside world. An ingest
+source can ingest materials from the outside world. An expell target
+can emit materials into the outside world. An expell target can also
+be connected to an ingest source in a nearby other cell.
