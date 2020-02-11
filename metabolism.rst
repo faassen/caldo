@@ -61,3 +61,28 @@ Basic equality operators
 Basic boolean operators
 
 Combinations of such - an exponential equation for instance.
+
+Or text prediction.
+
+The general mechanism
+---------------------
+
+The system generates an input sequence and an output sequence.
+
+It maintains a pointer into the input sequence and a pointer into the
+output sequence.
+
+When being read from the input queue, the pointer is moved. If the input
+pointer is beyond the end of the input, no more input is forthcoming.
+
+When values are pushed to the output queue, the output pointer is moved. If the
+output pointer is the same length as the expected output, the input and output
+are compared and a reward (the metabolism) is given.
+
+A new input and expected output are then generated and the pointers are
+both reset to 0. This generation can also happen "on demand" when input
+is requested when the input pointer is 0 or output is pushed when the
+output pointer is still 0.
+
+Output may be pushed before the input is fully read. If this happens, the
+problem is reset and the input queue is cleared.
