@@ -187,8 +187,8 @@ If gene id `b` does not refer to a gene, failure.
 
 If index `a` does not exist on gene, failure.
 
-Create ( -- a )
----------------
+Gene ( -- a )
+-------------
 
 Create a new gene. `a` is the gene id of the newly created gene.
 
@@ -204,5 +204,81 @@ Ideas
 
 Can these also be used to read from input queues? Write is like a queue, but
 read isn't. Unless we introduce read heads we can't really track where we read.
-Or do we want to arbitrarily read from a "sensor strip" too?
+Or do we want to arbitrarily read from a "sensor strip" too, i.e. an
+input array.
+
+The wall strength could be in an input array.
+
+A Port System
+==============
+
+A cell can maintain ports. These ports are the way it interacts with the
+outside world. A port can be used to ingest molecules and expell them to the
+environment. A port may also be connected to another port of a neighboring
+cell. This can allow a cell to ingest and emit materials.
+
+A port can also be used for communication: ports have associated queues,
+one in each direction. Values can be placed on the queue and read from
+the other end.
+
+Cell
+====
+
+Cell ( -- a)
+------------
+
+Create a new cell. `a` is the cell id of the newly created cell.
+
+Idea: create new cell at ort?
+Wall ( -- )
+-----------
+
+Strengthen the cell wall.
+
+OpenPort ( a -- b )
+-------------------
+
+Make a new port with a as port lookup. Return port id.
+
+ClosePort ( b -- )
+------------------
+
+Close a port with port id.
+
+LookupPort ( a -- b)
+--------------------
+
+Lookup port with port lookup. Return port id.
+
+MoveGene (a b -- )
+------------------
+
+Move gene with gene id a into cell with cell b.
+
+Fails if gene id or cell id does not exist.
+
+Idea: move into port?
+
+Metabolism
+==========
+
+Ingest ( a -- )
+---------------
+
+`a` is the element id. Element is looked up and ingested from the world
+immediately around the cell.
+
+Expell ( a -- )
+---------------
+
+`a` is the element id. Element is looked up and ejected into the world around
+the cell.
+
+Connect (a b -- c)
+------------------
+
+Given cell id and port lookup, return port id of neighboring cell. This
+connection can be broken if neighboring cell is further distant.
+
+ExpellPort (
 
