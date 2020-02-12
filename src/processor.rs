@@ -807,4 +807,52 @@ mod tests {
         p.execute_amount(&context, 5);
         assert_eq!(p.stack, [5, 3]);
     }
+
+    #[test]
+    fn test_read_gene_other_index() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+
+        let gene_id;
+        {
+            let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 2, READ_GENE_NR], &mut rng);
+            gene_id = gene.id;
+        }
+
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene_id).unwrap();
+        let mut p = Processor::new(gene);
+        p.execute_amount(&context, 5);
+        assert_eq!(p.stack, [5, ADD_NR]);
+    }
+
+    #[test]
+    fn test_read_gene_beyond_end() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+
+        let gene_id;
+        {
+            let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 100, READ_GENE_NR], &mut rng);
+            gene_id = gene.id;
+        }
+
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene_id).unwrap();
+        let mut p = Processor::new(gene);
+        p.execute_amount(&context, 5);
+        assert_eq!(p.stack, [5]);
+    }
 }
