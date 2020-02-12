@@ -17,6 +17,7 @@ pub struct Processor<'a> {
 
 pub struct ExecutionContext<'a> {
     pub max_stack_size: usize,
+    pub max_call_stack_size: usize,
     pub instruction_lookup: &'a lookup::Lookup<Instruction>,
     pub cell: &'a Cell<'a>,
 }
@@ -90,6 +91,15 @@ impl<'a> Processor<'a> {
             .splice(..context.max_stack_size / 2, [].iter().cloned());
     }
 
+    pub fn shrink_call_stack_on_overflow(&mut self, context: &ExecutionContext) {
+        if self.call_stack.len() <= context.max_call_stack_size {
+            return;
+        }
+        self.failures += 1;
+        self.call_stack
+            .splice(..context.max_call_stack_size / 2, [].iter().cloned());
+    }
+
     fn jump(&mut self, adjust: i32) -> Option<()> {
         let new_pc: i32 = (self.pc as i32) + adjust;
         if new_pc < 0 || new_pc >= (self.gene.code.len() as i32) {
@@ -109,6 +119,7 @@ impl<'a> Processor<'a> {
                 }
             };
             self.call_stack.push((self.gene.id, return_pc));
+            self.shrink_call_stack_on_overflow(context);
             self.gene = Rc::clone(&gene);
             self.pc = 0;
             Some(())
@@ -240,6 +251,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -258,6 +270,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -276,6 +289,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -301,6 +315,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -319,6 +334,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -336,6 +352,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -360,6 +377,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -383,6 +401,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -401,6 +420,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -418,6 +438,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -436,6 +457,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -453,6 +475,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -470,6 +493,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -488,6 +512,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -506,6 +531,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -523,6 +549,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -540,6 +567,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
 
@@ -572,6 +600,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
         let gene = cell.get_gene(gene2_id).unwrap();
@@ -600,6 +629,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
         let gene = cell.get_gene(gene2_id).unwrap();
@@ -621,6 +651,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
         let gene = cell.get_gene(gene_id).unwrap();
@@ -656,6 +687,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
         let gene = cell.get_gene(gene2_id).unwrap();
@@ -692,6 +724,7 @@ mod tests {
         let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
+            max_call_stack_size: 1000,
             cell: &cell,
         };
         let gene = cell.get_gene(gene2_id).unwrap();
@@ -701,5 +734,31 @@ mod tests {
 
         assert_eq!(p.stack, [5, 7, 5]);
         assert_eq!(p.failures, 0);
+    }
+
+    #[test]
+    fn test_call_stack_compaction() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+
+        cell.add_gene(&[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&[3, 4, 10, 20, ADD_NR, 40], &mut rng);
+        let gene = cell.add_gene(&[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
+        let gene_id = gene.id;
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 2,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene_id).unwrap();
+        let mut p = Processor::new(gene);
+
+        p.execute_amount(&context, 17);
+
+        assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
+        assert_eq!(p.call_stack.len(), 2);
+        assert_eq!(p.failures, 1);
     }
 }
