@@ -178,14 +178,14 @@ Execution costs ATP.
 Gene construction
 =================
 
-Read (a b -- c)
----------------
+ReadGene (a b -- c)
+-------------------
 
-Read index `a` of gene id `b`. Place value there on stack.
+Read index `b` of gene id `a`. Place value there on stack.
 
-If gene id `b` does not refer to a gene, failure.
+If gene id `a` does not refer to a gene, failure.
 
-If index `a` does not exist on gene, failure.
+If index `b` does not exist on gene, failure.
 
 Gene ( -- a )
 -------------

@@ -43,10 +43,12 @@ impl<'a> Processor<'a> {
         let t = Triplet::from_int(value);
         match t.mode {
             Mode::Number => {
+                // println!("number: {}", value);
                 self.stack.push(value);
             }
             Mode::Instruction => {
                 let instruction = context.instruction_lookup.find(value);
+                // println!("value {:x?}, instruction: {:?}", value, instruction);
                 let success = instruction.execute(self, context);
                 match success {
                     None => {
@@ -125,6 +127,16 @@ impl<'a> Processor<'a> {
             Some(())
         })
     }
+
+    fn read_gene(&mut self, gene_id: u32, index: u32, context: &'a ExecutionContext) -> Option<()> {
+        context.cell.get_gene(gene_id).and_then(|gene| {
+            if index >= gene.code.len() as u32 {
+                return None;
+            }
+            self.stack.push(gene.code[index as usize]);
+            Some(())
+        })
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -133,6 +145,7 @@ pub enum ProcessorInstruction {
     JB = 0x010110,
     Lookup = 0x010120,
     Call = 0x010130,
+    ReadGene = 0x010140,
 }
 
 impl<'a> ProcessorInstruction {
@@ -168,6 +181,10 @@ impl<'a> ProcessorInstruction {
                 .stack
                 .pop()
                 .and_then(|first| processor.call(first, context)),
+            ProcessorInstruction::ReadGene => processor
+                .stack
+                .pop2()
+                .and_then(|(first, second)| processor.read_gene(first, second, context)),
         }
     }
 
@@ -211,14 +228,15 @@ mod tests {
     use super::*;
     use crate::stack;
     use rand::SeedableRng;
-    const ADD_NR: u32 = stack::Instruction::Add as u32 | 0x01000000;
-    const SUB_NR: u32 = stack::Instruction::Sub as u32 | 0x01000000;
-    const DUP_NR: u32 = stack::Instruction::Dup as u32 | 0x01000000;
-    const JF_NR: u32 = ProcessorInstruction::JF as u32 | 0x01000000;
-    const JB_NR: u32 = ProcessorInstruction::JB as u32 | 0x01000000;
-    const CALL_NR: u32 = ProcessorInstruction::Call as u32 | 0x01000000;
-    const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | 0x01000000;
-
+    const INSTR_BIT: u32 = 0x01000000;
+    const ADD_NR: u32 = stack::Instruction::Add as u32 | INSTR_BIT;
+    const SUB_NR: u32 = stack::Instruction::Sub as u32 | INSTR_BIT;
+    const DUP_NR: u32 = stack::Instruction::Dup as u32 | INSTR_BIT;
+    const JF_NR: u32 = ProcessorInstruction::JF as u32 | INSTR_BIT;
+    const JB_NR: u32 = ProcessorInstruction::JB as u32 | INSTR_BIT;
+    const CALL_NR: u32 = ProcessorInstruction::Call as u32 | INSTR_BIT;
+    const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | INSTR_BIT;
+    const READ_GENE_NR: u32 = ProcessorInstruction::ReadGene as u32 | INSTR_BIT;
     const SEED: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
     fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
@@ -240,6 +258,10 @@ mod tests {
         .expect("cannot add");
         l.add(Instruction::ProcessorInstruction(
             ProcessorInstruction::Call,
+        ))
+        .expect("cannot add");
+        l.add(Instruction::ProcessorInstruction(
+            ProcessorInstruction::ReadGene,
         ))
         .expect("cannot add");
 
@@ -760,5 +782,29 @@ mod tests {
         assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
         assert_eq!(p.call_stack.len(), 2);
         assert_eq!(p.failures, 1);
+    }
+
+    #[test]
+    fn test_read_gene() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+
+        let gene_id;
+        {
+            let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 0, READ_GENE_NR], &mut rng);
+            gene_id = gene.id;
+        }
+
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene = cell.get_gene(gene_id).unwrap();
+        let mut p = Processor::new(gene);
+        p.execute_amount(&context, 5);
+        assert_eq!(p.stack, [5, 3]);
     }
 }
