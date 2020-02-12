@@ -1,4 +1,12 @@
-* Flatten instruction
+-----------------
+To be implemented
+-----------------
+
+* Execution costs ATP.
+
+* Fuzzing by generating random genes and running it.
+
+
 
 * An arena for genes?
 

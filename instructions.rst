@@ -167,14 +167,6 @@ Rot (a b c -- b c a)
 
 Rotate the top of the stack.
 
------------------
-To be implemented
------------------
-
-Call stack overflow compaction.
-
-Execution costs ATP.
-
 Gene construction
 =================
 
