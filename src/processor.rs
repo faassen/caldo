@@ -721,18 +721,13 @@ mod tests {
 
         cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene2_id;
-        {
-            // 5 3
-            // 5 <NR>
-            // 5 3 4
-            // 5 7
-            let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
-            gene2_id = genes[gene2_key].id;
-        }
+        // 5 3
+        // 5 <NR>
+        // 5 3 4
+        // 5 7
+        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
-        let gene_key = cell.get_gene_key(gene2_id).unwrap();
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(gene2_key);
 
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
@@ -754,9 +749,6 @@ mod tests {
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         let gene_key = cell.add_gene(&mut genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
-        let gene_id = genes[gene_key].id;
-
-        let gene_key = cell.get_gene_key(gene_id).unwrap();
         let mut p = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -780,22 +772,17 @@ mod tests {
 
         cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene2_id;
-        {
-            // 5
-            // 5 3
-            // 5 <NR>
-            // 5
-            // 5 3
-            // 5 3 4
-            // 5 7
-            // 5 7 4
-            let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
-            gene2_id = genes[gene2_key].id;
-        }
+        // 5
+        // 5 3
+        // 5 <NR>
+        // 5
+        // 5 3
+        // 5 3 4
+        // 5 7
+        // 5 7 4
+        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
 
-        let gene_key = cell.get_gene_key(gene2_id).unwrap();
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(gene2_key);
 
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
@@ -817,21 +804,16 @@ mod tests {
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
-
-        let gene2_id;
-        {
-            // 5
-            // 5 3
-            // 5 <NR>
-            // 5
-            // 5 3
-            // 5 3 4
-            // 5 7
-            // should wrap again to start
-            // 5 7 5
-            let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
-            gene2_id = genes[gene2_key].id;
-        }
+        // 5
+        // 5 3
+        // 5 <NR>
+        // 5
+        // 5 3
+        // 5 3 4
+        // 5 7
+        // should wrap again to start
+        // 5 7 5
+        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
@@ -840,8 +822,8 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        let gene_key = cell.get_gene_key(gene2_id).unwrap();
-        let mut p = Processor::new(gene_key);
+
+        let mut p = Processor::new(gene2_key);
 
         p.execute_amount(&mut context, 8);
 
@@ -859,9 +841,7 @@ mod tests {
         cell.add_gene(&mut genes, &[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
         cell.add_gene(&mut genes, &[3, 4, 10, 20, ADD_NR, 40], &mut rng);
         let gene_key = cell.add_gene(&mut genes, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
-        let gene_id = genes[gene_key].id;
 
-        let gene_key = cell.get_gene_key(gene_id).unwrap();
         let mut p = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -885,13 +865,8 @@ mod tests {
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_id;
-        {
-            let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 0, READ_GENE_NR], &mut rng);
-            gene_id = genes[gene_key].id;
-        }
+        let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 0, READ_GENE_NR], &mut rng);
 
-        let gene_key = cell.get_gene_key(gene_id).unwrap();
         let mut p = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -912,13 +887,8 @@ mod tests {
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_id;
-        {
-            let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 2, READ_GENE_NR], &mut rng);
-            gene_id = genes[gene_key].id;
-        }
+        let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 2, READ_GENE_NR], &mut rng);
 
-        let gene_key = cell.get_gene_key(gene_id).unwrap();
         let mut p = Processor::new(gene_key);
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
@@ -938,14 +908,7 @@ mod tests {
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_id;
-        {
-            let gene_key =
-                cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 100, READ_GENE_NR], &mut rng);
-            gene_id = genes[gene_key].id;
-        }
-
-        let gene_key = cell.get_gene_key(gene_id).unwrap();
+        let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 100, READ_GENE_NR], &mut rng);
         let mut p = Processor::new(gene_key);
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
@@ -963,19 +926,9 @@ mod tests {
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene_id1;
-        {
-            let gene_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
-            gene_id1 = genes[gene_key].id;
-        }
-        let gene_id2;
-        {
-            let gene_key =
-                cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR], &mut rng);
-            gene_id2 = genes[gene_key].id;
-        }
+        let gene1_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR], &mut rng);
 
-        let gene2_key = cell.get_gene_key(gene_id2).unwrap();
         let mut p = Processor::new(gene2_key);
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
@@ -985,7 +938,7 @@ mod tests {
             genes: &mut genes,
         };
         p.execute_amount(&mut context, 5);
-        let gene1_key = cell.get_gene_key(gene_id1).unwrap();
+
         assert_eq!(genes[gene1_key].code, [3, 4, ADD_NR, 10]);
     }
 }
