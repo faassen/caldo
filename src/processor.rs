@@ -1,7 +1,5 @@
-use slotmap::DenseSlotMap;
-
 use crate::cell::Cell;
-use crate::gene::{Gene, GeneKey};
+use crate::gene::GeneKey;
 use crate::lookup;
 use crate::stack;
 use crate::stack::{nr_to_bool, Stack};
@@ -16,15 +14,11 @@ pub struct Processor {
     pub failures: u32,
 }
 
-// XXX split context into a immutable part
-// and a mutable part with cell and genes and really, world.
-// so pass the mutable world in everywhere.
 pub struct ExecutionContext<'a> {
     pub max_stack_size: usize,
     pub max_call_stack_size: usize,
     pub instruction_lookup: &'a lookup::Lookup<Instruction>,
     pub cell: &'a Cell,
-    pub genes: &'a mut DenseSlotMap<GeneKey, Gene>,
 }
 
 impl Processor {
@@ -40,7 +34,7 @@ impl Processor {
 
     pub fn execute(&mut self, world: &mut World, context: &mut ExecutionContext) {
         // XXX is it possible to add gene to execution context?
-        let value = context.genes[self.gene_key].code[self.pc];
+        let value = world.genes[self.gene_key].code[self.pc];
 
         // now increase pc
         self.pc += 1;
@@ -54,7 +48,7 @@ impl Processor {
             Mode::Instruction => {
                 let instruction = context.instruction_lookup.find(value);
                 // println!("value {:x?}, instruction: {:?}", value, instruction);
-                let success = instruction.execute(self, context);
+                let success = instruction.execute(self, world, context);
                 match success {
                     None => {
                         self.failures += 1;
@@ -67,7 +61,7 @@ impl Processor {
         }
 
         // at the end
-        if self.pc >= context.genes[self.gene_key].code.len() {
+        if self.pc >= world.genes[self.gene_key].code.len() {
             let top = self.call_stack.pop();
             match top {
                 Some((gene_id, return_pc)) => {
@@ -112,9 +106,9 @@ impl Processor {
             .splice(..context.max_call_stack_size / 2, [].iter().cloned());
     }
 
-    fn jump(&mut self, adjust: i32, context: &ExecutionContext) -> Option<()> {
+    fn jump(&mut self, adjust: i32, world: &World, context: &ExecutionContext) -> Option<()> {
         let new_pc: i32 = (self.pc as i32) + adjust;
-        let gene = &context.genes[self.gene_key];
+        let gene = &world.genes[self.gene_key];
         if new_pc < 0 || new_pc >= (gene.code.len() as i32) {
             return None;
         }
@@ -122,8 +116,8 @@ impl Processor {
         Some(())
     }
 
-    fn call(&mut self, gene_id: u32, context: &ExecutionContext) -> Option<()> {
-        let gene = &context.genes[self.gene_key];
+    fn call(&mut self, gene_id: u32, world: &World, context: &ExecutionContext) -> Option<()> {
+        let gene = &world.genes[self.gene_key];
         context
             .cell
             .get_gene_key(gene_id)
@@ -143,9 +137,15 @@ impl Processor {
             })
     }
 
-    fn read_gene(&mut self, gene_id: u32, index: u32, context: &ExecutionContext) -> Option<()> {
+    fn read_gene(
+        &mut self,
+        gene_id: u32,
+        index: u32,
+        world: &World,
+        context: &ExecutionContext,
+    ) -> Option<()> {
         context.cell.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &context.genes[gene_key];
+            let gene = &world.genes[gene_key];
             if index >= gene.code.len() as u32 {
                 return None;
             }
@@ -158,10 +158,11 @@ impl Processor {
         &mut self,
         gene_id: u32,
         value: u32,
+        world: &mut World,
         context: &mut ExecutionContext,
     ) -> Option<()> {
         context.cell.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &mut context.genes[gene_key];
+            let gene = &mut world.genes[gene_key];
             gene.code.push(value);
             Some(())
         })
@@ -182,6 +183,7 @@ impl<'a> ProcessorInstruction {
     pub fn execute(
         &self,
         processor: &mut Processor,
+        world: &mut World,
         context: &'a mut ExecutionContext,
     ) -> Option<()> {
         println!("Execute: {:?}", self);
@@ -193,7 +195,7 @@ impl<'a> ProcessorInstruction {
                 if second == 0 {
                     return Some(());
                 }
-                processor.jump(second as i32, context)
+                processor.jump(second as i32, world, context)
             }),
             ProcessorInstruction::JB => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
@@ -202,26 +204,26 @@ impl<'a> ProcessorInstruction {
                 if second == 0 {
                     return Some(());
                 }
-                processor.jump(-(second as i32 + 1), context)
+                processor.jump(-(second as i32 + 1), world, context)
             }),
             ProcessorInstruction::Lookup => processor.stack.pop().and_then(|first| {
                 processor
                     .stack
-                    .push(context.cell.lookup_gene_id(context.genes, first));
+                    .push(context.cell.lookup_gene_id(&world.genes, first));
                 Some(())
             }),
             ProcessorInstruction::Call => processor
                 .stack
                 .pop()
-                .and_then(|first| processor.call(first, context)),
+                .and_then(|first| processor.call(first, world, context)),
             ProcessorInstruction::ReadGene => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.read_gene(first, second, context)),
+                .and_then(|(first, second)| processor.read_gene(first, second, world, context)),
             ProcessorInstruction::WriteGene => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.write_gene(first, second, context)),
+                .and_then(|(first, second)| processor.write_gene(first, second, world, context)),
         }
     }
 
@@ -240,12 +242,13 @@ impl<'a> Instruction {
     pub fn execute(
         &self,
         processor: &mut Processor,
+        world: &mut World,
         context: &'a mut ExecutionContext,
     ) -> Option<()> {
         match self {
             Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
             Instruction::ProcessorInstruction(instruction) => {
-                instruction.execute(processor, context)
+                instruction.execute(processor, world, context)
             }
         }
     }
@@ -260,6 +263,7 @@ impl<'a> Instruction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::gene::Gene;
     use crate::stack;
     use rand::SeedableRng;
     const INSTR_BIT: u32 = 0x01000000;
@@ -304,10 +308,9 @@ mod tests {
     #[test]
     fn test_processor_execute() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
 
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let cell = Cell::new();
         let mut g = Processor::new(gene_key);
 
@@ -316,7 +319,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 3);
@@ -327,11 +329,11 @@ mod tests {
     #[test]
     fn test_processor_execute_multiple() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[3, 4, ADD_NR, 6, SUB_NR]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -339,7 +341,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 5);
@@ -351,11 +352,11 @@ mod tests {
     #[test]
     fn test_processor_execute_beyond_end() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -363,7 +364,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 6);
@@ -383,11 +383,10 @@ mod tests {
     fn test_processor_execute_nearby() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -395,7 +394,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         g.execute_amount(&mut world, &mut context, 5);
 
@@ -406,11 +404,11 @@ mod tests {
     #[test]
     fn test_processor_execute_stack_underflow() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[4, ADD_NR]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -418,7 +416,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 2);
@@ -431,11 +428,10 @@ mod tests {
     fn test_processor_execute_stack_overflow_numbers() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[1, 2, 3, 4, 5]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -443,7 +439,6 @@ mod tests {
             max_stack_size: 4,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 5);
@@ -462,10 +457,9 @@ mod tests {
     fn test_processor_execute_stack_overflow_instructions() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
         let gene = Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -473,7 +467,6 @@ mod tests {
             max_stack_size: 4,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 5);
@@ -491,11 +484,10 @@ mod tests {
     fn test_jf() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[1, 1, JF_NR, 66, 77]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -503,7 +495,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 4);
@@ -516,11 +507,10 @@ mod tests {
     fn test_jf2() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[1, 2, JF_NR, 66, 77, 88]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -528,7 +518,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 4);
@@ -540,11 +529,10 @@ mod tests {
     fn test_jf_too_far() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[1, 200, JF_NR, 66, 88]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -552,7 +540,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 4);
@@ -565,11 +552,10 @@ mod tests {
     fn test_jf_false() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[0, 1, JF_NR, 66, 88]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -577,7 +563,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 4);
@@ -589,11 +574,10 @@ mod tests {
     fn test_jf_zero() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[1, 0, JF_NR, 66, 88]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -601,7 +585,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 4);
@@ -613,10 +596,9 @@ mod tests {
     fn test_jb() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
         let gene = Gene::new(0, &[88, 1, 3, JB_NR, 66]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -624,7 +606,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 5);
@@ -637,11 +618,10 @@ mod tests {
     fn test_jb_false() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[88, 0, 3, JB_NR, 66]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -649,7 +629,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         g.execute_amount(&mut world, &mut context, 5);
 
@@ -661,18 +640,16 @@ mod tests {
     fn test_jb_1() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 5);
@@ -684,11 +661,10 @@ mod tests {
     fn test_jb_zero() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[88, 1, 0, JB_NR, 66]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -696,7 +672,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         g.execute_amount(&mut world, &mut context, 5);
@@ -708,11 +683,10 @@ mod tests {
     fn test_jb_too_far() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
         let gene = Gene::new(0, &[88, 1, 100, JB_NR, 66]);
-        let gene_key = genes.insert(gene);
+        let gene_key = world.genes.insert(gene);
 
         let mut g = Processor::new(gene_key);
 
@@ -721,7 +695,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         g.execute_amount(&mut world, &mut context, 5);
 
@@ -733,13 +706,12 @@ mod tests {
     fn test_lookup() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
-        let gene1_id = genes[gene1_key].id;
+        let gene1_key = cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let gene1_id = world.genes[gene1_key].id;
 
-        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR], &mut rng);
+        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR], &mut rng);
 
         let mut p = Processor::new(gene2_key);
 
@@ -748,7 +720,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 3);
         assert_eq!(p.stack, [5, gene1_id]);
@@ -758,17 +729,16 @@ mod tests {
     fn test_call_without_return() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
         // 5 3
         // 5 <NR>
         // 5 3 4
         // 5 7
-        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut p = Processor::new(gene2_key);
 
@@ -777,7 +747,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 7);
 
@@ -789,11 +758,10 @@ mod tests {
     fn test_call_impossible_gene_id() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        let gene_key = cell.add_gene(&mut genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
+        let gene_key = cell.add_gene(&mut world.genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
         let mut p = Processor::new(gene_key);
 
         let mut context = ExecutionContext {
@@ -801,7 +769,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 5);
 
@@ -813,11 +780,10 @@ mod tests {
     fn test_call_and_return() {
         let mut world = World::new();
 
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
         // 5
         // 5 3
@@ -827,7 +793,7 @@ mod tests {
         // 5 3 4
         // 5 7
         // 5 7 4
-        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
+        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
 
         let mut p = Processor::new(gene2_key);
 
@@ -836,7 +802,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 8);
 
@@ -847,11 +812,11 @@ mod tests {
     #[test]
     fn test_call_at_end() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
         // 5
         // 5 3
         // 5 <NR>
@@ -861,14 +826,13 @@ mod tests {
         // 5 7
         // should wrap again to start
         // 5 7 5
-        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
 
         let mut p = Processor::new(gene2_key);
@@ -882,14 +846,14 @@ mod tests {
     #[test]
     fn test_call_stack_compaction() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut genes, &[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
-        cell.add_gene(&mut genes, &[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
-        cell.add_gene(&mut genes, &[3, 4, 10, 20, ADD_NR, 40], &mut rng);
-        let gene_key = cell.add_gene(&mut genes, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, 10, 20, ADD_NR, 40], &mut rng);
+        let gene_key = cell.add_gene(&mut world.genes, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut p = Processor::new(gene_key);
 
@@ -898,7 +862,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 2,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 17);
 
@@ -910,12 +873,16 @@ mod tests {
     #[test]
     fn test_read_gene() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 0, READ_GENE_NR], &mut rng);
+        let gene_key = cell.add_gene(
+            &mut world.genes,
+            &[5, 3, LOOKUP_NR, 0, READ_GENE_NR],
+            &mut rng,
+        );
 
         let mut p = Processor::new(gene_key);
 
@@ -924,7 +891,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 5);
         assert_eq!(p.stack, [5, 3]);
@@ -933,12 +899,16 @@ mod tests {
     #[test]
     fn test_read_gene_other_index() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 2, READ_GENE_NR], &mut rng);
+        let gene_key = cell.add_gene(
+            &mut world.genes,
+            &[5, 3, LOOKUP_NR, 2, READ_GENE_NR],
+            &mut rng,
+        );
 
         let mut p = Processor::new(gene_key);
         let mut context = ExecutionContext {
@@ -946,7 +916,6 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 5);
         assert_eq!(p.stack, [5, ADD_NR]);
@@ -955,19 +924,22 @@ mod tests {
     #[test]
     fn test_read_gene_beyond_end() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 100, READ_GENE_NR], &mut rng);
+        let gene_key = cell.add_gene(
+            &mut world.genes,
+            &[5, 3, LOOKUP_NR, 100, READ_GENE_NR],
+            &mut rng,
+        );
         let mut p = Processor::new(gene_key);
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 5);
         assert_eq!(p.stack, [5]);
@@ -976,11 +948,15 @@ mod tests {
     #[test]
     fn test_write_gene() {
         let mut world = World::new();
-        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
-        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR], &mut rng);
+        let gene1_key = cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let gene2_key = cell.add_gene(
+            &mut world.genes,
+            &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR],
+            &mut rng,
+        );
 
         let mut p = Processor::new(gene2_key);
         let mut context = ExecutionContext {
@@ -988,10 +964,9 @@ mod tests {
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
-            genes: &mut genes,
         };
         p.execute_amount(&mut world, &mut context, 5);
 
-        assert_eq!(genes[gene1_key].code, [3, 4, ADD_NR, 10]);
+        assert_eq!(world.genes[gene1_key].code, [3, 4, ADD_NR, 10]);
     }
 }
