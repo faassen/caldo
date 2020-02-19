@@ -181,7 +181,6 @@ impl<'a> ProcessorInstruction {
         world: &mut World,
         context: &'a ExecutionContext,
     ) -> Option<()> {
-        println!("Execute: {:?}", self);
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
