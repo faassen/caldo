@@ -20,4 +20,10 @@ lookup space.
 A gene can have a processor started on it at any point; it can only
 grow at the end.
 
+How does a gene get transferred?
+================================
 
+What happens to any processors that might be on it?
+
+What happens to processors that would return to it once it is removed? (XXX in
+the code)
