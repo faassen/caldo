@@ -699,7 +699,6 @@ mod tests {
         let gene1_id = genes[gene1_key].id;
 
         let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR], &mut rng);
-        let gene2_id = genes[gene2_key].id;
 
         let mut p = Processor::new(gene2_key);
 
