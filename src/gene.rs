@@ -1,29 +1,21 @@
-use crate::lookup::Coordinates;
-use std::cell::RefCell;
-use std::rc::Rc;
+use slotmap::new_key_type;
+
+new_key_type! { pub struct GeneKey; }
 
 pub struct Gene {
     pub id: u32,
-    pub code: RefCell<Vec<u32>>,
+    pub code: Vec<u32>,
 }
 
 impl Gene {
     pub fn new(id: u32, code: &[u32]) -> Gene {
         return Gene {
             id: id,
-            code: RefCell::new(code.to_vec()),
+            code: code.to_vec(),
         };
     }
-}
 
-impl Coordinates for Gene {
-    fn coordinates(&self) -> u32 {
-        self.code.borrow()[0] & 0xFFFFFF
-    }
-}
-
-impl Coordinates for Rc<Gene> {
-    fn coordinates(&self) -> u32 {
-        self.code.borrow()[0] & 0xFFFFFF
+    pub fn coordinates(&self) -> u32 {
+        self.code[0] & 0xFFFFFF
     }
 }
