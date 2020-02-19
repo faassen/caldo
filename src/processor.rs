@@ -32,7 +32,7 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, world: &mut World, context: &mut ExecutionContext) {
+    pub fn execute(&mut self, world: &mut World, context: &ExecutionContext) {
         // XXX is it possible to add gene to execution context?
         let value = world.genes[self.gene_key].code[self.pc];
 
@@ -79,12 +79,7 @@ impl Processor {
         self.shrink_stack_on_overflow(context);
     }
 
-    pub fn execute_amount(
-        &mut self,
-        world: &mut World,
-        context: &mut ExecutionContext,
-        amount: usize,
-    ) {
+    pub fn execute_amount(&mut self, world: &mut World, context: &ExecutionContext, amount: usize) {
         (0..amount).for_each(|_| self.execute(world, context))
     }
 
@@ -106,7 +101,7 @@ impl Processor {
             .splice(..context.max_call_stack_size / 2, [].iter().cloned());
     }
 
-    fn jump(&mut self, adjust: i32, world: &World, context: &ExecutionContext) -> Option<()> {
+    fn jump(&mut self, adjust: i32, world: &World) -> Option<()> {
         let new_pc: i32 = (self.pc as i32) + adjust;
         let gene = &world.genes[self.gene_key];
         if new_pc < 0 || new_pc >= (gene.code.len() as i32) {
@@ -159,7 +154,7 @@ impl Processor {
         gene_id: u32,
         value: u32,
         world: &mut World,
-        context: &mut ExecutionContext,
+        context: &ExecutionContext,
     ) -> Option<()> {
         context.cell.get_gene_key(gene_id).and_then(|gene_key| {
             let gene = &mut world.genes[gene_key];
@@ -184,7 +179,7 @@ impl<'a> ProcessorInstruction {
         &self,
         processor: &mut Processor,
         world: &mut World,
-        context: &'a mut ExecutionContext,
+        context: &'a ExecutionContext,
     ) -> Option<()> {
         println!("Execute: {:?}", self);
         match self {
@@ -195,7 +190,7 @@ impl<'a> ProcessorInstruction {
                 if second == 0 {
                     return Some(());
                 }
-                processor.jump(second as i32, world, context)
+                processor.jump(second as i32, world)
             }),
             ProcessorInstruction::JB => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
@@ -204,7 +199,7 @@ impl<'a> ProcessorInstruction {
                 if second == 0 {
                     return Some(());
                 }
-                processor.jump(-(second as i32 + 1), world, context)
+                processor.jump(-(second as i32 + 1), world)
             }),
             ProcessorInstruction::Lookup => processor.stack.pop().and_then(|first| {
                 processor
@@ -243,7 +238,7 @@ impl<'a> Instruction {
         &self,
         processor: &mut Processor,
         world: &mut World,
-        context: &'a mut ExecutionContext,
+        context: &'a ExecutionContext,
     ) -> Option<()> {
         match self {
             Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
@@ -314,14 +309,14 @@ mod tests {
         let cell = Cell::new();
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 3);
+        g.execute_amount(&mut world, &context, 3);
         assert_eq!(g.stack, [7]);
         assert_eq!(g.failures, 0);
     }
@@ -336,14 +331,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
@@ -359,14 +354,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 6);
+        g.execute_amount(&mut world, &context, 6);
 
         // 3
         // 4
@@ -389,13 +384,13 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
@@ -411,14 +406,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 2);
+        g.execute_amount(&mut world, &context, 2);
 
         assert_eq!(g.stack, []);
         assert_eq!(g.failures, 1);
@@ -434,14 +429,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         // 1
         // 1 2
@@ -462,14 +457,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         // 1
         // 1 1
@@ -490,14 +485,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 4);
+        g.execute_amount(&mut world, &context, 4);
 
         assert_eq!(g.stack, [77]);
         assert_eq!(g.failures, 0);
@@ -513,14 +508,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 4);
+        g.execute_amount(&mut world, &context, 4);
 
         assert_eq!(g.stack, [88]);
     }
@@ -535,14 +530,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 4);
+        g.execute_amount(&mut world, &context, 4);
 
         assert_eq!(g.stack, [66]);
         assert_eq!(g.failures, 1);
@@ -558,14 +553,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 4);
+        g.execute_amount(&mut world, &context, 4);
 
         assert_eq!(g.stack, [66]);
     }
@@ -580,14 +575,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 4);
+        g.execute_amount(&mut world, &context, 4);
 
         assert_eq!(g.stack, [66]);
     }
@@ -601,14 +596,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [88, 88]);
         assert_eq!(g.failures, 0);
@@ -624,13 +619,13 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [88, 66]);
         assert_eq!(g.failures, 0);
@@ -645,14 +640,14 @@ mod tests {
         let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [88, 1]);
     }
@@ -667,14 +662,14 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
 
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [88, 66]);
     }
@@ -690,13 +685,13 @@ mod tests {
 
         let mut g = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        g.execute_amount(&mut world, &mut context, 5);
+        g.execute_amount(&mut world, &context, 5);
 
         assert_eq!(g.stack, [88, 66]);
         assert_eq!(g.failures, 1);
@@ -715,13 +710,13 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 3);
+        p.execute_amount(&mut world, &context, 3);
         assert_eq!(p.stack, [5, gene1_id]);
     }
 
@@ -742,13 +737,13 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 7);
+        p.execute_amount(&mut world, &context, 7);
 
         assert_eq!(p.stack, [5, 7]);
         assert_eq!(p.failures, 0);
@@ -764,13 +759,13 @@ mod tests {
         let gene_key = cell.add_gene(&mut world.genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
         let mut p = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 5);
+        p.execute_amount(&mut world, &context, 5);
 
         assert_eq!(p.stack, [7]);
         assert_eq!(p.failures, 1);
@@ -797,13 +792,13 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 8);
+        p.execute_amount(&mut world, &context, 8);
 
         assert_eq!(p.stack, [5, 7, 4]);
         assert_eq!(p.failures, 0);
@@ -828,7 +823,7 @@ mod tests {
         // 5 7 5
         let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -837,7 +832,7 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        p.execute_amount(&mut world, &mut context, 8);
+        p.execute_amount(&mut world, &context, 8);
 
         assert_eq!(p.stack, [5, 7, 5]);
         assert_eq!(p.failures, 0);
@@ -857,13 +852,13 @@ mod tests {
 
         let mut p = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 2,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 17);
+        p.execute_amount(&mut world, &context, 17);
 
         assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
         assert_eq!(p.call_stack.len(), 2);
@@ -886,13 +881,13 @@ mod tests {
 
         let mut p = Processor::new(gene_key);
 
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 5);
+        p.execute_amount(&mut world, &context, 5);
         assert_eq!(p.stack, [5, 3]);
     }
 
@@ -911,13 +906,13 @@ mod tests {
         );
 
         let mut p = Processor::new(gene_key);
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 5);
+        p.execute_amount(&mut world, &context, 5);
         assert_eq!(p.stack, [5, ADD_NR]);
     }
 
@@ -935,13 +930,13 @@ mod tests {
             &mut rng,
         );
         let mut p = Processor::new(gene_key);
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 5);
+        p.execute_amount(&mut world, &context, 5);
         assert_eq!(p.stack, [5]);
     }
 
@@ -959,13 +954,13 @@ mod tests {
         );
 
         let mut p = Processor::new(gene2_key);
-        let mut context = ExecutionContext {
+        let context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
             cell: &cell,
         };
-        p.execute_amount(&mut world, &mut context, 5);
+        p.execute_amount(&mut world, &context, 5);
 
         assert_eq!(world.genes[gene1_key].code, [3, 4, ADD_NR, 10]);
     }
