@@ -1,25 +1,29 @@
 use crate::lookup::Coordinates;
+use std::cell::RefCell;
 use std::rc::Rc;
 
-pub struct Gene<'a> {
+pub struct Gene {
     pub id: u32,
-    pub code: &'a [u32],
+    pub code: RefCell<Vec<u32>>,
 }
 
-impl<'a> Gene<'a> {
+impl Gene {
     pub fn new(id: u32, code: &[u32]) -> Gene {
-        return Gene { id: id, code: code };
+        return Gene {
+            id: id,
+            code: RefCell::new(code.to_vec()),
+        };
     }
 }
 
-impl<'a> Coordinates for Gene<'a> {
+impl Coordinates for Gene {
     fn coordinates(&self) -> u32 {
-        self.code[0] & 0xFFFFFF
+        self.code.borrow()[0] & 0xFFFFFF
     }
 }
 
-impl<'a> Coordinates for Rc<Gene<'a>> {
+impl Coordinates for Rc<Gene> {
     fn coordinates(&self) -> u32 {
-        self.code[0] & 0xFFFFFF
+        self.code.borrow()[0] & 0xFFFFFF
     }
 }

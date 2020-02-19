@@ -1,27 +1,25 @@
 use crate::gene::Gene;
 use crate::lookup;
-use crate::processor::Processor;
 use std::collections::HashMap;
 extern crate rand_pcg;
 
 use rand::Rng;
 use std::rc::Rc;
 
-// a world owns all cells, and all genes too
+// a world owns all cells
 
-struct World<'a> {
-    cell: Vec<Cell<'a>>,
-    genes: HashMap<u32, Gene<'a>>,
+struct World {
+    cell: Vec<Cell>,
 }
 
-pub struct Cell<'a> {
-    genes: HashMap<u32, Rc<Gene<'a>>>,
-    gene_lookup: lookup::Lookup<Rc<Gene<'a>>>,
+pub struct Cell {
+    genes: HashMap<u32, Rc<Gene>>,
+    gene_lookup: lookup::Lookup<Rc<Gene>>,
     // processors: Vec<Processor<'a>>,
 }
 
-impl<'a> Cell<'a> {
-    pub fn new() -> Cell<'a> {
+impl Cell {
+    pub fn new() -> Cell {
         Cell {
             genes: HashMap::new(),
             gene_lookup: lookup::Lookup::new(),
@@ -29,9 +27,9 @@ impl<'a> Cell<'a> {
         }
     }
 
-    pub fn add_gene<R: Rng>(&mut self, code: &'a [u32], rng: &mut R) -> Rc<Gene> {
+    pub fn add_gene<R: Rng>(&mut self, code: &[u32], rng: &mut R) -> Rc<Gene> {
         let id = self.create_gene_id(rng);
-        let gene = Gene { id, code };
+        let gene = Gene::new(id, code);
         let rc_gene = Rc::new(gene);
         self.genes.insert(id, rc_gene);
         let rc_handle = self.genes.get(&id).unwrap();
@@ -58,33 +56,6 @@ impl<'a> Cell<'a> {
     }
 }
 
-// how to distinguish between genes if they're both stored
-// at the same coordinate? we don't want to leave it up to the
-// an implementation detail which one you get, and it shouldn't be random
-// either.
-
-// we don't want to burden accesses to genes with another index either,
-// or an indirect gene handle - we want to maintain coordinate-based
-// addressing.
-
-// the simplest would be to place a gene *near* an existing gene so
-// that each gene simply has a unique address. But this means that
-// the instruction won't uniquely identify it, and we want content-based
-// addressing.
-
-// if there are two identical genes, I want to address the gene
-// that was added latest, or the gene that wasn't. is a newest/oldest
-// a way to address? it's definitely unique.
-
-// a cell owns processors and genes
-
-// a processor can reference a gene
-
-// add gene
-
-// find a gene by number of first instruction
-
-// if a gene is destroyed, how do we clear its processors?
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,8 +7,8 @@ use crate::triplet::{Mode, Triplet};
 
 use std::rc::Rc;
 
-pub struct Processor<'a> {
-    gene: Rc<Gene<'a>>,
+pub struct Processor {
+    gene: Rc<Gene>,
     pub stack: Vec<u32>,
     pub call_stack: Vec<(u32, usize)>,
     pc: usize,
@@ -19,11 +19,11 @@ pub struct ExecutionContext<'a> {
     pub max_stack_size: usize,
     pub max_call_stack_size: usize,
     pub instruction_lookup: &'a lookup::Lookup<Instruction>,
-    pub cell: &'a Cell<'a>,
+    pub cell: &'a Cell,
 }
 
-impl<'a> Processor<'a> {
-    pub fn new(gene: Rc<Gene<'a>>) -> Processor<'a> {
+impl Processor {
+    pub fn new(gene: Rc<Gene>) -> Processor {
         return Processor {
             gene: Rc::clone(&gene),
             stack: vec![],
@@ -33,10 +33,8 @@ impl<'a> Processor<'a> {
         };
     }
 
-    pub fn execute(&mut self, context: &'a ExecutionContext) {
-        let code = self.gene.code;
-
-        let value = code[self.pc];
+    pub fn execute(&mut self, context: &ExecutionContext) {
+        let value = self.gene.code.borrow()[self.pc];
         // now increase pc
         self.pc += 1;
 
@@ -62,7 +60,7 @@ impl<'a> Processor<'a> {
         }
 
         // at the end
-        if self.pc >= code.len() {
+        if self.pc >= self.gene.code.borrow().len() {
             let top = self.call_stack.pop();
             match top {
                 Some((gene_id, return_pc)) => {
@@ -80,7 +78,7 @@ impl<'a> Processor<'a> {
         self.shrink_stack_on_overflow(context);
     }
 
-    pub fn execute_amount(&mut self, context: &'a ExecutionContext, amount: usize) {
+    pub fn execute_amount(&mut self, context: &ExecutionContext, amount: usize) {
         (0..amount).for_each(|_| self.execute(context))
     }
 
@@ -104,17 +102,17 @@ impl<'a> Processor<'a> {
 
     fn jump(&mut self, adjust: i32) -> Option<()> {
         let new_pc: i32 = (self.pc as i32) + adjust;
-        if new_pc < 0 || new_pc >= (self.gene.code.len() as i32) {
+        if new_pc < 0 || new_pc >= (self.gene.code.borrow().len() as i32) {
             return None;
         }
         self.pc = new_pc as usize;
         Some(())
     }
 
-    fn call(&mut self, gene_id: u32, context: &'a ExecutionContext) -> Option<()> {
+    fn call(&mut self, gene_id: u32, context: &ExecutionContext) -> Option<()> {
         context.cell.get_gene(gene_id).and_then(|gene| {
             let return_pc = {
-                if self.pc >= self.gene.code.len() {
+                if self.pc >= self.gene.code.borrow().len() {
                     0
                 } else {
                     self.pc
@@ -128,12 +126,19 @@ impl<'a> Processor<'a> {
         })
     }
 
-    fn read_gene(&mut self, gene_id: u32, index: u32, context: &'a ExecutionContext) -> Option<()> {
+    fn read_gene(&mut self, gene_id: u32, index: u32, context: &ExecutionContext) -> Option<()> {
         context.cell.get_gene(gene_id).and_then(|gene| {
-            if index >= gene.code.len() as u32 {
+            if index >= gene.code.borrow().len() as u32 {
                 return None;
             }
-            self.stack.push(gene.code[index as usize]);
+            self.stack.push(gene.code.borrow()[index as usize]);
+            Some(())
+        })
+    }
+
+    fn write_gene(&mut self, gene_id: u32, value: u32, context: &ExecutionContext) -> Option<()> {
+        context.cell.get_gene(gene_id).and_then(|gene| {
+            gene.code.borrow_mut().push(value);
             Some(())
         })
     }
@@ -146,14 +151,12 @@ pub enum ProcessorInstruction {
     Lookup = 0x010120,
     Call = 0x010130,
     ReadGene = 0x010140,
+    WriteGene = 0x010150,
 }
 
 impl<'a> ProcessorInstruction {
-    pub fn execute(
-        &self,
-        processor: &mut Processor<'a>,
-        context: &'a ExecutionContext,
-    ) -> Option<()> {
+    pub fn execute(&self, processor: &mut Processor, context: &'a ExecutionContext) -> Option<()> {
+        println!("Execute: {:?}", self);
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
@@ -185,6 +188,10 @@ impl<'a> ProcessorInstruction {
                 .stack
                 .pop2()
                 .and_then(|(first, second)| processor.read_gene(first, second, context)),
+            ProcessorInstruction::WriteGene => processor
+                .stack
+                .pop2()
+                .and_then(|(first, second)| processor.write_gene(first, second, context)),
         }
     }
 
@@ -200,11 +207,7 @@ pub enum Instruction {
 }
 
 impl<'a> Instruction {
-    pub fn execute(
-        &self,
-        processor: &mut Processor<'a>,
-        context: &'a ExecutionContext,
-    ) -> Option<()> {
+    pub fn execute(&self, processor: &mut Processor, context: &'a ExecutionContext) -> Option<()> {
         match self {
             Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
             Instruction::ProcessorInstruction(instruction) => {
@@ -237,6 +240,7 @@ mod tests {
     const CALL_NR: u32 = ProcessorInstruction::Call as u32 | INSTR_BIT;
     const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | INSTR_BIT;
     const READ_GENE_NR: u32 = ProcessorInstruction::ReadGene as u32 | INSTR_BIT;
+    const WRITE_GENE_NR: u32 = ProcessorInstruction::WriteGene as u32 | INSTR_BIT;
     const SEED: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
     fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
@@ -264,7 +268,10 @@ mod tests {
             ProcessorInstruction::ReadGene,
         ))
         .expect("cannot add");
-
+        l.add(Instruction::ProcessorInstruction(
+            ProcessorInstruction::WriteGene,
+        ))
+        .expect("cannot add");
         return l;
     }
     #[test]
@@ -854,5 +861,33 @@ mod tests {
         let mut p = Processor::new(gene);
         p.execute_amount(&context, 5);
         assert_eq!(p.stack, [5]);
+    }
+
+    #[test]
+    fn test_write_gene() {
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        let gene_id1;
+        {
+            let gene = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+            gene_id1 = gene.id;
+        }
+        let gene_id2;
+        {
+            let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR], &mut rng);
+            gene_id2 = gene.id;
+        }
+
+        let context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+        };
+        let gene2 = cell.get_gene(gene_id2).unwrap();
+        let mut p = Processor::new(gene2);
+        p.execute_amount(&context, 5);
+        let gene1 = cell.get_gene(gene_id1).unwrap();
+        assert_eq!(*gene1.code.borrow(), [3, 4, ADD_NR, 10]);
     }
 }
