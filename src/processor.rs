@@ -818,166 +818,182 @@ mod tests {
         assert_eq!(p.failures, 0);
     }
 
-    // #[test]
-    // fn test_call_at_end() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+    #[test]
+    fn test_call_at_end() {
+        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-    //     cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-    //     let gene2_id;
-    //     {
-    //         // 5
-    //         // 5 3
-    //         // 5 <NR>
-    //         // 5
-    //         // 5 3
-    //         // 5 3 4
-    //         // 5 7
-    //         // should wrap again to start
-    //         // 5 7 5
-    //         let gene2 = cell.add_gene(&[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
-    //         gene2_id = gene2.id;
-    //     }
+        let gene2_id;
+        {
+            // 5
+            // 5 3
+            // 5 <NR>
+            // 5
+            // 5 3
+            // 5 3 4
+            // 5 7
+            // should wrap again to start
+            // 5 7 5
+            let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
+            gene2_id = genes[gene2_key].id;
+        }
 
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         max_call_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene2_id).unwrap();
-    //     let mut p = Processor::new(gene);
+        let mut context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+            genes: &mut genes,
+        };
+        let gene_key = cell.get_gene_key(gene2_id).unwrap();
+        let mut p = Processor::new(gene_key);
 
-    //     p.execute_amount(&context, 8);
+        p.execute_amount(&mut context, 8);
 
-    //     assert_eq!(p.stack, [5, 7, 5]);
-    //     assert_eq!(p.failures, 0);
-    // }
+        assert_eq!(p.stack, [5, 7, 5]);
+        assert_eq!(p.failures, 0);
+    }
 
-    // #[test]
-    // fn test_call_stack_compaction() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+    #[test]
+    fn test_call_stack_compaction() {
+        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-    //     cell.add_gene(&[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
-    //     cell.add_gene(&[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
-    //     cell.add_gene(&[3, 4, 10, 20, ADD_NR, 40], &mut rng);
-    //     let gene = cell.add_gene(&[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
-    //     let gene_id = gene.id;
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         max_call_stack_size: 2,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene_id).unwrap();
-    //     let mut p = Processor::new(gene);
+        cell.add_gene(&mut genes, &[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&mut genes, &[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        cell.add_gene(&mut genes, &[3, 4, 10, 20, ADD_NR, 40], &mut rng);
+        let gene_key = cell.add_gene(&mut genes, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
+        let gene_id = genes[gene_key].id;
 
-    //     p.execute_amount(&context, 17);
+        let gene_key = cell.get_gene_key(gene_id).unwrap();
+        let mut p = Processor::new(gene_key);
 
-    //     assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
-    //     assert_eq!(p.call_stack.len(), 2);
-    //     assert_eq!(p.failures, 1);
-    // }
+        let mut context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 2,
+            cell: &cell,
+            genes: &mut genes,
+        };
+        p.execute_amount(&mut context, 17);
 
-    // #[test]
-    // fn test_read_gene() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-    //     cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+        assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
+        assert_eq!(p.call_stack.len(), 2);
+        assert_eq!(p.failures, 1);
+    }
 
-    //     let gene_id;
-    //     {
-    //         let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 0, READ_GENE_NR], &mut rng);
-    //         gene_id = gene.id;
-    //     }
+    #[test]
+    fn test_read_gene() {
+        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         max_call_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene_id).unwrap();
-    //     let mut p = Processor::new(gene);
-    //     p.execute_amount(&context, 5);
-    //     assert_eq!(p.stack, [5, 3]);
-    // }
+        let gene_id;
+        {
+            let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 0, READ_GENE_NR], &mut rng);
+            gene_id = genes[gene_key].id;
+        }
 
-    // #[test]
-    // fn test_read_gene_other_index() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-    //     cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+        let gene_key = cell.get_gene_key(gene_id).unwrap();
+        let mut p = Processor::new(gene_key);
 
-    //     let gene_id;
-    //     {
-    //         let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 2, READ_GENE_NR], &mut rng);
-    //         gene_id = gene.id;
-    //     }
+        let mut context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+            genes: &mut genes,
+        };
+        p.execute_amount(&mut context, 5);
+        assert_eq!(p.stack, [5, 3]);
+    }
 
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         max_call_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene_id).unwrap();
-    //     let mut p = Processor::new(gene);
-    //     p.execute_amount(&context, 5);
-    //     assert_eq!(p.stack, [5, ADD_NR]);
-    // }
+    #[test]
+    fn test_read_gene_other_index() {
+        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-    // #[test]
-    // fn test_read_gene_beyond_end() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-    //     cell.add_gene(&[3, 4, ADD_NR], &mut rng);
+        let gene_id;
+        {
+            let gene_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 2, READ_GENE_NR], &mut rng);
+            gene_id = genes[gene_key].id;
+        }
 
-    //     let gene_id;
-    //     {
-    //         let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 100, READ_GENE_NR], &mut rng);
-    //         gene_id = gene.id;
-    //     }
+        let gene_key = cell.get_gene_key(gene_id).unwrap();
+        let mut p = Processor::new(gene_key);
+        let mut context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+            genes: &mut genes,
+        };
+        p.execute_amount(&mut context, 5);
+        assert_eq!(p.stack, [5, ADD_NR]);
+    }
 
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         max_call_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene = cell.get_gene(gene_id).unwrap();
-    //     let mut p = Processor::new(gene);
-    //     p.execute_amount(&context, 5);
-    //     assert_eq!(p.stack, [5]);
-    // }
+    #[test]
+    fn test_read_gene_beyond_end() {
+        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
 
-    // #[test]
-    // fn test_write_gene() {
-    //     let mut cell = Cell::new();
-    //     let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-    //     let gene_id1;
-    //     {
-    //         let gene = cell.add_gene(&[3, 4, ADD_NR], &mut rng);
-    //         gene_id1 = gene.id;
-    //     }
-    //     let gene_id2;
-    //     {
-    //         let gene = cell.add_gene(&[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR], &mut rng);
-    //         gene_id2 = gene.id;
-    //     }
+        let gene_id;
+        {
+            let gene_key =
+                cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 100, READ_GENE_NR], &mut rng);
+            gene_id = genes[gene_key].id;
+        }
 
-    //     let context = ExecutionContext {
-    //         instruction_lookup: &instruction_lookup(),
-    //         max_stack_size: 1000,
-    //         max_call_stack_size: 1000,
-    //         cell: &cell,
-    //     };
-    //     let gene2 = cell.get_gene(gene_id2).unwrap();
-    //     let mut p = Processor::new(gene2);
-    //     p.execute_amount(&context, 5);
-    //     let gene1 = cell.get_gene(gene_id1).unwrap();
-    //     assert_eq!(*gene1.code.borrow(), [3, 4, ADD_NR, 10]);
-    // }
+        let gene_key = cell.get_gene_key(gene_id).unwrap();
+        let mut p = Processor::new(gene_key);
+        let mut context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+            genes: &mut genes,
+        };
+        p.execute_amount(&mut context, 5);
+        assert_eq!(p.stack, [5]);
+    }
+
+    #[test]
+    fn test_write_gene() {
+        let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
+        let mut cell = Cell::new();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        let gene_id1;
+        {
+            let gene_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+            gene_id1 = genes[gene_key].id;
+        }
+        let gene_id2;
+        {
+            let gene_key =
+                cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR], &mut rng);
+            gene_id2 = genes[gene_key].id;
+        }
+
+        let gene2_key = cell.get_gene_key(gene_id2).unwrap();
+        let mut p = Processor::new(gene2_key);
+        let mut context = ExecutionContext {
+            instruction_lookup: &instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+            cell: &cell,
+            genes: &mut genes,
+        };
+        p.execute_amount(&mut context, 5);
+        let gene1_key = cell.get_gene_key(gene_id1).unwrap();
+        assert_eq!(genes[gene1_key].code, [3, 4, ADD_NR, 10]);
+    }
 }
