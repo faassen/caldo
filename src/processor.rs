@@ -695,20 +695,13 @@ mod tests {
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_id;
-        {
-            let gene1_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
-            gene1_id = genes[gene1_key].id;
-        }
+        let gene1_key = cell.add_gene(&mut genes, &[3, 4, ADD_NR], &mut rng);
+        let gene1_id = genes[gene1_key].id;
 
-        let gene2_id;
-        {
-            let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR], &mut rng);
-            gene2_id = genes[gene2_key].id;
-        }
+        let gene2_key = cell.add_gene(&mut genes, &[5, 3, LOOKUP_NR], &mut rng);
+        let gene2_id = genes[gene2_key].id;
 
-        let gene_key = cell.get_gene_key(gene2_id).unwrap();
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(gene2_key);
 
         let mut context = ExecutionContext {
             instruction_lookup: &instruction_lookup(),
