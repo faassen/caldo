@@ -1,17 +1,12 @@
-use crate::gene::{Gene, GeneKey};
-use crate::lookup;
 use std::collections::HashMap;
 extern crate rand_pcg;
-
 use rand::Rng;
 use slotmap::{new_key_type, DenseSlotMap};
 
-new_key_type! {struct CellKey; }
+use crate::gene::{Gene, GeneKey};
+use crate::lookup;
 
-struct World {
-    cells: DenseSlotMap<CellKey, Cell>,
-    genes: DenseSlotMap<GeneKey, Gene>,
-}
+new_key_type! {pub struct CellKey; }
 
 pub struct Cell {
     genes: HashMap<u32, GeneKey>,

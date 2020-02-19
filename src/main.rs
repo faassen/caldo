@@ -9,6 +9,7 @@ pub mod processor;
 pub mod reaction;
 pub mod stack;
 pub mod triplet;
+pub mod world;
 
 fn main() {
     println!("Hello, world!");

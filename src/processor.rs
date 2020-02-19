@@ -1,11 +1,12 @@
+use slotmap::DenseSlotMap;
+
 use crate::cell::Cell;
 use crate::gene::{Gene, GeneKey};
 use crate::lookup;
 use crate::stack;
 use crate::stack::{nr_to_bool, Stack};
 use crate::triplet::{Mode, Triplet};
-
-use slotmap::DenseSlotMap;
+use crate::world::World;
 
 pub struct Processor {
     gene_key: GeneKey,
@@ -15,6 +16,9 @@ pub struct Processor {
     pub failures: u32,
 }
 
+// XXX split context into a immutable part
+// and a mutable part with cell and genes and really, world.
+// so pass the mutable world in everywhere.
 pub struct ExecutionContext<'a> {
     pub max_stack_size: usize,
     pub max_call_stack_size: usize,
@@ -34,7 +38,7 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, context: &mut ExecutionContext) {
+    pub fn execute(&mut self, world: &mut World, context: &mut ExecutionContext) {
         // XXX is it possible to add gene to execution context?
         let value = context.genes[self.gene_key].code[self.pc];
 
@@ -81,8 +85,13 @@ impl Processor {
         self.shrink_stack_on_overflow(context);
     }
 
-    pub fn execute_amount(&mut self, context: &mut ExecutionContext, amount: usize) {
-        (0..amount).for_each(|_| self.execute(context))
+    pub fn execute_amount(
+        &mut self,
+        world: &mut World,
+        context: &mut ExecutionContext,
+        amount: usize,
+    ) {
+        (0..amount).for_each(|_| self.execute(world, context))
     }
 
     pub fn shrink_stack_on_overflow(&mut self, context: &ExecutionContext) {
@@ -294,6 +303,7 @@ mod tests {
     }
     #[test]
     fn test_processor_execute() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
 
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
@@ -309,13 +319,14 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 3);
+        g.execute_amount(&mut world, &mut context, 3);
         assert_eq!(g.stack, [7]);
         assert_eq!(g.failures, 0);
     }
 
     #[test]
     fn test_processor_execute_multiple() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -331,7 +342,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
@@ -339,6 +350,7 @@ mod tests {
 
     #[test]
     fn test_processor_execute_beyond_end() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -354,7 +366,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 6);
+        g.execute_amount(&mut world, &mut context, 6);
 
         // 3
         // 4
@@ -369,6 +381,8 @@ mod tests {
 
     #[test]
     fn test_processor_execute_nearby() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -383,7 +397,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [1]);
         assert_eq!(g.failures, 0);
@@ -391,6 +405,7 @@ mod tests {
 
     #[test]
     fn test_processor_execute_stack_underflow() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -406,7 +421,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 2);
+        g.execute_amount(&mut world, &mut context, 2);
 
         assert_eq!(g.stack, []);
         assert_eq!(g.failures, 1);
@@ -414,6 +429,8 @@ mod tests {
 
     #[test]
     fn test_processor_execute_stack_overflow_numbers() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -429,7 +446,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         // 1
         // 1 2
@@ -443,6 +460,8 @@ mod tests {
 
     #[test]
     fn test_processor_execute_stack_overflow_instructions() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
         let gene = Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
@@ -457,7 +476,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         // 1
         // 1 1
@@ -470,6 +489,8 @@ mod tests {
 
     #[test]
     fn test_jf() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -485,7 +506,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 4);
+        g.execute_amount(&mut world, &mut context, 4);
 
         assert_eq!(g.stack, [77]);
         assert_eq!(g.failures, 0);
@@ -493,6 +514,8 @@ mod tests {
 
     #[test]
     fn test_jf2() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -508,13 +531,15 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 4);
+        g.execute_amount(&mut world, &mut context, 4);
 
         assert_eq!(g.stack, [88]);
     }
 
     #[test]
     fn test_jf_too_far() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -530,7 +555,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 4);
+        g.execute_amount(&mut world, &mut context, 4);
 
         assert_eq!(g.stack, [66]);
         assert_eq!(g.failures, 1);
@@ -538,6 +563,8 @@ mod tests {
 
     #[test]
     fn test_jf_false() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -553,13 +580,15 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 4);
+        g.execute_amount(&mut world, &mut context, 4);
 
         assert_eq!(g.stack, [66]);
     }
 
     #[test]
     fn test_jf_zero() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -575,13 +604,15 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 4);
+        g.execute_amount(&mut world, &mut context, 4);
 
         assert_eq!(g.stack, [66]);
     }
 
     #[test]
     fn test_jb() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
         let gene = Gene::new(0, &[88, 1, 3, JB_NR, 66]);
@@ -596,7 +627,7 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [88, 88]);
         assert_eq!(g.failures, 0);
@@ -604,6 +635,8 @@ mod tests {
 
     #[test]
     fn test_jb_false() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -618,7 +651,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [88, 66]);
         assert_eq!(g.failures, 0);
@@ -626,6 +659,8 @@ mod tests {
 
     #[test]
     fn test_jb_1() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -640,13 +675,15 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [88, 1]);
     }
 
     #[test]
     fn test_jb_zero() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -662,13 +699,15 @@ mod tests {
             genes: &mut genes,
         };
 
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [88, 66]);
     }
 
     #[test]
     fn test_jb_too_far() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let cell = Cell::new();
 
@@ -684,7 +723,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        g.execute_amount(&mut context, 5);
+        g.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(g.stack, [88, 66]);
         assert_eq!(g.failures, 1);
@@ -692,6 +731,8 @@ mod tests {
 
     #[test]
     fn test_lookup() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -709,12 +750,14 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 3);
+        p.execute_amount(&mut world, &mut context, 3);
         assert_eq!(p.stack, [5, gene1_id]);
     }
 
     #[test]
     fn test_call_without_return() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -736,7 +779,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 7);
+        p.execute_amount(&mut world, &mut context, 7);
 
         assert_eq!(p.stack, [5, 7]);
         assert_eq!(p.failures, 0);
@@ -744,6 +787,8 @@ mod tests {
 
     #[test]
     fn test_call_impossible_gene_id() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -758,7 +803,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 5);
+        p.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(p.stack, [7]);
         assert_eq!(p.failures, 1);
@@ -766,6 +811,8 @@ mod tests {
 
     #[test]
     fn test_call_and_return() {
+        let mut world = World::new();
+
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -791,7 +838,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 8);
+        p.execute_amount(&mut world, &mut context, 8);
 
         assert_eq!(p.stack, [5, 7, 4]);
         assert_eq!(p.failures, 0);
@@ -799,6 +846,7 @@ mod tests {
 
     #[test]
     fn test_call_at_end() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -825,7 +873,7 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        p.execute_amount(&mut context, 8);
+        p.execute_amount(&mut world, &mut context, 8);
 
         assert_eq!(p.stack, [5, 7, 5]);
         assert_eq!(p.failures, 0);
@@ -833,6 +881,7 @@ mod tests {
 
     #[test]
     fn test_call_stack_compaction() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -851,7 +900,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 17);
+        p.execute_amount(&mut world, &mut context, 17);
 
         assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
         assert_eq!(p.call_stack.len(), 2);
@@ -860,6 +909,7 @@ mod tests {
 
     #[test]
     fn test_read_gene() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -876,12 +926,13 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 5);
+        p.execute_amount(&mut world, &mut context, 5);
         assert_eq!(p.stack, [5, 3]);
     }
 
     #[test]
     fn test_read_gene_other_index() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -897,12 +948,13 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 5);
+        p.execute_amount(&mut world, &mut context, 5);
         assert_eq!(p.stack, [5, ADD_NR]);
     }
 
     #[test]
     fn test_read_gene_beyond_end() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -917,12 +969,13 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 5);
+        p.execute_amount(&mut world, &mut context, 5);
         assert_eq!(p.stack, [5]);
     }
 
     #[test]
     fn test_write_gene() {
+        let mut world = World::new();
         let mut genes: DenseSlotMap<GeneKey, Gene> = DenseSlotMap::with_key();
         let mut cell = Cell::new();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
@@ -937,7 +990,7 @@ mod tests {
             cell: &cell,
             genes: &mut genes,
         };
-        p.execute_amount(&mut context, 5);
+        p.execute_amount(&mut world, &mut context, 5);
 
         assert_eq!(genes[gene1_key].code, [3, 4, ADD_NR, 10]);
     }
