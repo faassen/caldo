@@ -33,7 +33,6 @@ impl Processor {
     }
 
     pub fn execute(&mut self, world: &mut World, context: &ExecutionContext) {
-        // XXX is it possible to add gene to execution context?
         let value = world.genes[self.gene_key].code[self.pc];
 
         // now increase pc
