@@ -1,6 +1,43 @@
 Metabolism
 ==========
 
+We have catalyst ports identified with chemical reactions. If the cell solves a
+problem in a port, the chemical reaction takes place.
+
+Maintaining structures in the cell is also a catalyst port -- it is like a
+chemical reaction (for instance, to maintain the cell wall).
+
+Moving the cell is also a catalyst port -- it turns a chemical into
+movement. This loses the energy.
+
+A cell can also connect to another cell, and then transfer chemicals
+and genes. A cell can create a new cell it is connected to.
+
+How does a connection take place?
+
+A cell can set up a communication channel with another one.
+
+  cell 1   cell 2
+  input <- output
+  output -> input
+  gt: off      on
+  ct: on      off
+
+This communication channel behaves like a port inside. The cell can send it
+values and receive values. The cell can decide based on its interaction that it
+wants to open itself to gene transfers, and open itself to chemical transfers.
+It can also transfer a gene through the port with a special instruction.
+Chemicals are transferred through a port with a special instruction too.
+
+How would a sensor port work? Its input and output mechanism appears to be
+reverted: the cell directs the sensing to the output port first, and the input
+port then delivers the information. Once the information is fully read, the
+output port is ready to receive new items. But is there a benefit to this
+compared to simply having instructions to do this? Not really, so let's not go
+here. Or perhaps we should as communication ports are basically random too?
+
+
+
 Metabolism and ports.
 
 An organelle is something that is:

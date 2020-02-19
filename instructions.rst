@@ -50,16 +50,16 @@ If `a` is non-FALSE, jump to `pc - b` on gene. If `a` is FALSE, don't jump. If
 
 If jump would go beyond start of gene this is a failure.
 
-Lookup (a -- b) Look Up Gene
-----------------------------
+Lookup (a -- gene_id) Look Up Gene
+----------------------------------
 
-Look up gene id for `a`. Place the gene id on the top of the stack.
+Look up `gene_id` for `a`. Place the gene id on the top of the stack.
 
-Call (a --) Call Gene
-----------------------
+Call (gene_id --) Call Gene
+---------------------------
 
-Take `a` as gene id. Find matching gene for it. If gene cannot be found this is
-a failure. If gene can be found, transfer to this gene, set `pc` to 0.
+Find matching gene for `gene_id`. If gene cannot be found this is a failure. If
+gene can be found, transfer to this gene, set `pc` to 0.
 
 One the end of that gene is reached, transfer is moved back to the current
 gene, if it still exists.
@@ -170,107 +170,156 @@ Rotate the top of the stack.
 Gene construction
 =================
 
-ReadGene (a b -- c)
--------------------
+ReadGene (gene_id a -- b)
+-------------------------
 
-Read index `b` of gene id `a`. Place value there on stack.
+Read index `a` of `gene_id`. Place value there on stack.
 
-If gene id `a` does not refer to a gene, failure.
+If `gene_id` does not refer to a gene, failure.
 
-If index `b` does not exist on gene, failure.
+If index `a` does not exist on gene, failure.
 
-Gene ( -- a )
--------------
-
-Create a new gene. `a` is the gene id of the newly created gene.
-
-Write (a b -- )
----------------
-
-Write value `a` to the end of the gene with gene id `b`.
-
-If gene id `b` does not exist, failure.
-
-Ideas
------
-
-Can these also be used to read from input queues? Write is like a queue, but
-read isn't. Unless we introduce read heads we can't really track where we read.
-Or do we want to arbitrarily read from a "sensor strip" too, i.e. an
-input array.
-
-The wall strength could be in an input array.
-
-A Port System
-==============
-
-A cell can maintain ports. These ports are the way it interacts with the
-outside world. A port can be used to ingest molecules and expell them to the
-environment. A port may also be connected to another port of a neighboring
-cell. This can allow a cell to ingest and emit materials.
-
-A port can also be used for communication: ports have associated queues,
-one in each direction. Values can be placed on the queue and read from
-the other end.
-
-Cell
-====
-
-Cell ( -- a)
-------------
-
-Create a new cell. `a` is the cell id of the newly created cell.
-
-Idea: create new cell at ort?
-Wall ( -- )
------------
-
-Strengthen the cell wall.
-
-OpenPort ( a -- b )
--------------------
-
-Make a new port with a as port lookup. Return port id.
-
-ClosePort ( b -- )
+Gene ( -- gene_id)
 ------------------
 
-Close a port with port id.
+Create a new gene.
 
-LookupPort ( a -- b)
+WriteGene (gene_id a -- )
+-------------------------
+
+Write value `a` to the end of gene.
+
+If gene id does not exist, failure.
+
+Processor
+---------
+
+Start (gene_id a -- )
+---------------------
+
+Start a processor on gene with index a.
+
+End
+---
+
+This processor is removed.
+
+Homeostasis
+============
+
+ChemAmount (chem -- a)
+----------------------
+
+Find chemical. Return the amount of this chemical in this cell.
+
+WallAmount (-- a)
+-----------------
+
+Find the amount invested in the integrity of the cell, i.e. the wall.
+
+Organelle System
+================
+
+There are a number of organelles in the system. These can be used
+to:
+
+* induce chemical reactions.
+
+* communicate with neighboring cells.
+
+* transfer genes and chemicals to neighboring cells.
+
+* ingest or expel chemicals with the environment.
+
+* maintain the cellular integrity, the "wall".
+
+The various organelles just "exist", so that the cell has access
+to this equipment. It may however not be able to actually use them,
+as this requires sending the right outputs for given inputs.
+
+Chemical reactions may be otherwise bounded by external circumstances, such as
+light, temperature, etc.
+
+An organelle can also be used to connect to neighboring cells. How
+many of such connection organelles exit depends on the system; one
+for each direction, for instance, or only a single one per cell.
+
+A connection can be attempted with an instruction. A connection organelle can
+also be used to create a child cell.
+
+Once a connection is established, the input port is connected the other cell's
+output port and vice versa. Communication can flow through this channel.
+
+A connection can be opened or closed by the cell for chemicals and genes. An
+open connection can be used to transfer these to another cell.
+
+LookupOrg (a -- org_id)
+-----------------------
+
+Lookup near organelle by org identifier.
+
+Input (org_id -- a)
+-------------------
+
+Input one value from org_id.
+
+HasInput (org_id -- a)
+----------------------
+
+Return TRUE if there is input on port org_id.
+
+Output (org_id a --)
 --------------------
 
-Lookup port with port lookup. Return port id.
+Output value to org_id.
 
-MoveGene (a b -- )
-------------------
+OpenGene (org_id --)
+--------------------
 
-Move gene with gene id a into cell with cell b.
+Open org for gene input. Only makes sense for communication ports.
 
-Fails if gene id or cell id does not exist.
+OpenChem (org_id --)
+--------------------
 
-Idea: move into port?
+Open org for chemical input/reaction. If a chemical reaction organelle is
+closed, it won't actually perform the reaction even though input/output might
+cause it to. If an external organelle is closed, expel and ingest won't
+work.
 
-Metabolism
-==========
+CloseGene (org_id --)
+---------------------
 
-Ingest ( a -- )
----------------
+CloseChem (org_id --)
+---------------------
 
-`a` is the element id. Element is looked up and ingested from the world
-immediately around the cell.
+IsOpenChem (org_id -- a)
+------------------------
 
-Expell ( a -- )
----------------
+IsOpenGene (org_id -- a)
+------------------------
 
-`a` is the element id. Element is looked up and ejected into the world around
-the cell.
+Expel (org_id chem -- )
+-----------------------
 
-Connect (a b -- c)
-------------------
+Transfer chemical (identified in chem space) through communication port or
+to environment.
 
-Given cell id and port lookup, return port id of neighboring cell. This
-connection can be broken if neighboring cell is further distant.
+Ingest (org_id chem -- )
+------------------------
 
-ExpellPort (
+Ingest chemical (identified in chem space) through organelle. This only
+works for environment organelles.
 
+Cell (org_id -- )
+-----------------
+
+Create a new cell at a communication port. It does nothing for other
+ports. The new cell starts connected through this communication port,
+and everything is open.
+
+MoveGene (gene_id org_id -- )
+-----------------------------
+
+Move gene with gene_id through port identified by org_id. If it's not a
+communication port, nothing happens, and also not if it's not connected to
+other cells.
