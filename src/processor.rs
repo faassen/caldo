@@ -14,7 +14,11 @@ pub struct Processor {
     pub failures: u32,
 }
 
-pub struct ExecutionContext<'a> {
+// XXX split this into an immutable ExecutionConfig and a
+// mutable ExecutionContext, where ExecutionContext may be passed
+// on the stack. It can keep references to the world, as well as the
+// current cell and current gene.
+pub struct Config<'a> {
     pub max_stack_size: usize,
     pub max_call_stack_size: usize,
     pub instruction_lookup: &'a lookup::Lookup<Instruction>,
@@ -32,7 +36,7 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, world: &mut World, context: &ExecutionContext) {
+    pub fn execute(&mut self, world: &mut World, context: &Config) {
         let value = world.genes[self.gene_key].code[self.pc];
 
         // now increase pc
@@ -78,11 +82,11 @@ impl Processor {
         self.shrink_stack_on_overflow(context);
     }
 
-    pub fn execute_amount(&mut self, world: &mut World, context: &ExecutionContext, amount: usize) {
+    pub fn execute_amount(&mut self, world: &mut World, context: &Config, amount: usize) {
         (0..amount).for_each(|_| self.execute(world, context))
     }
 
-    pub fn shrink_stack_on_overflow(&mut self, context: &ExecutionContext) {
+    pub fn shrink_stack_on_overflow(&mut self, context: &Config) {
         if self.stack.len() <= context.max_stack_size {
             return;
         }
@@ -91,7 +95,7 @@ impl Processor {
             .splice(..context.max_stack_size / 2, [].iter().cloned());
     }
 
-    pub fn shrink_call_stack_on_overflow(&mut self, context: &ExecutionContext) {
+    pub fn shrink_call_stack_on_overflow(&mut self, context: &Config) {
         if self.call_stack.len() <= context.max_call_stack_size {
             return;
         }
@@ -110,7 +114,7 @@ impl Processor {
         Some(())
     }
 
-    fn call(&mut self, gene_id: u32, world: &World, context: &ExecutionContext) -> Option<()> {
+    fn call(&mut self, gene_id: u32, world: &World, context: &Config) -> Option<()> {
         let gene = &world.genes[self.gene_key];
         context
             .cell
@@ -136,7 +140,7 @@ impl Processor {
         gene_id: u32,
         index: u32,
         world: &World,
-        context: &ExecutionContext,
+        context: &Config,
     ) -> Option<()> {
         context.cell.get_gene_key(gene_id).and_then(|gene_key| {
             let gene = &world.genes[gene_key];
@@ -153,7 +157,7 @@ impl Processor {
         gene_id: u32,
         value: u32,
         world: &mut World,
-        context: &ExecutionContext,
+        context: &Config,
     ) -> Option<()> {
         context.cell.get_gene_key(gene_id).and_then(|gene_key| {
             let gene = &mut world.genes[gene_key];
@@ -178,7 +182,7 @@ impl<'a> ProcessorInstruction {
         &self,
         processor: &mut Processor,
         world: &mut World,
-        context: &'a ExecutionContext,
+        context: &'a Config,
     ) -> Option<()> {
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
@@ -236,7 +240,7 @@ impl<'a> Instruction {
         &self,
         processor: &mut Processor,
         world: &mut World,
-        context: &'a ExecutionContext,
+        context: &'a Config,
     ) -> Option<()> {
         match self {
             Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
@@ -307,7 +311,7 @@ mod tests {
         let cell = Cell::new();
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -329,7 +333,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -352,7 +356,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -382,7 +386,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -404,7 +408,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -427,7 +431,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
             max_call_stack_size: 1000,
@@ -455,7 +459,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
             max_call_stack_size: 1000,
@@ -483,7 +487,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -506,7 +510,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -528,7 +532,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -551,7 +555,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -573,7 +577,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -594,7 +598,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -617,7 +621,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -638,7 +642,7 @@ mod tests {
         let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -660,7 +664,7 @@ mod tests {
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -683,7 +687,7 @@ mod tests {
 
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -708,7 +712,7 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -735,7 +739,7 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -757,7 +761,7 @@ mod tests {
         let gene_key = cell.add_gene(&mut world.genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -790,7 +794,7 @@ mod tests {
 
         let mut p = Processor::new(gene2_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -821,7 +825,7 @@ mod tests {
         // 5 7 5
         let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -850,7 +854,7 @@ mod tests {
 
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 2,
@@ -879,7 +883,7 @@ mod tests {
 
         let mut p = Processor::new(gene_key);
 
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -904,7 +908,7 @@ mod tests {
         );
 
         let mut p = Processor::new(gene_key);
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -928,7 +932,7 @@ mod tests {
             &mut rng,
         );
         let mut p = Processor::new(gene_key);
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
@@ -952,7 +956,7 @@ mod tests {
         );
 
         let mut p = Processor::new(gene2_key);
-        let context = ExecutionContext {
+        let context = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
