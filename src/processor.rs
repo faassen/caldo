@@ -1,4 +1,4 @@
-use crate::cell::Cell;
+use crate::cell::CellKey;
 use crate::gene::GeneKey;
 use crate::lookup;
 use crate::stack;
@@ -7,6 +7,7 @@ use crate::triplet::{Mode, Triplet};
 use crate::world::World;
 
 pub struct Processor {
+    cell_key: CellKey,
     gene_key: GeneKey,
     pub stack: Vec<u32>,
     pub call_stack: Vec<(u32, usize)>,
@@ -22,12 +23,12 @@ pub struct Config<'a> {
     pub max_stack_size: usize,
     pub max_call_stack_size: usize,
     pub instruction_lookup: &'a lookup::Lookup<Instruction>,
-    pub cell: &'a Cell,
 }
 
 impl Processor {
-    pub fn new(gene_key: GeneKey) -> Processor {
+    pub fn new(cell_key: CellKey, gene_key: GeneKey) -> Processor {
         return Processor {
+            cell_key: cell_key,
             gene_key: gene_key,
             stack: vec![],
             call_stack: vec![],
@@ -70,7 +71,7 @@ impl Processor {
                 Some((gene_id, return_pc)) => {
                     // return to calling gene
                     // XXX must check for gene_id being valid
-                    self.gene_key = context.cell.get_gene_key(gene_id).unwrap();
+                    self.gene_key = world.cells[self.cell_key].get_gene_key(gene_id).unwrap();
                     self.pc = return_pc;
                 }
                 None => {
@@ -116,8 +117,7 @@ impl Processor {
 
     fn call(&mut self, gene_id: u32, world: &World, context: &Config) -> Option<()> {
         let gene = &world.genes[self.gene_key];
-        context
-            .cell
+        world.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|call_gene_key| {
                 let return_pc = {
@@ -142,14 +142,16 @@ impl Processor {
         world: &World,
         context: &Config,
     ) -> Option<()> {
-        context.cell.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &world.genes[gene_key];
-            if index >= gene.code.len() as u32 {
-                return None;
-            }
-            self.stack.push(gene.code[index as usize]);
-            Some(())
-        })
+        world.cells[self.cell_key]
+            .get_gene_key(gene_id)
+            .and_then(|gene_key| {
+                let gene = &world.genes[gene_key];
+                if index >= gene.code.len() as u32 {
+                    return None;
+                }
+                self.stack.push(gene.code[index as usize]);
+                Some(())
+            })
     }
 
     fn write_gene(
@@ -159,11 +161,13 @@ impl Processor {
         world: &mut World,
         context: &Config,
     ) -> Option<()> {
-        context.cell.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &mut world.genes[gene_key];
-            gene.code.push(value);
-            Some(())
-        })
+        world.cells[self.cell_key]
+            .get_gene_key(gene_id)
+            .and_then(|gene_key| {
+                let gene = &mut world.genes[gene_key];
+                gene.code.push(value);
+                Some(())
+            })
     }
 }
 
@@ -206,7 +210,7 @@ impl<'a> ProcessorInstruction {
             ProcessorInstruction::Lookup => processor.stack.pop().and_then(|first| {
                 processor
                     .stack
-                    .push(context.cell.lookup_gene_id(&world.genes, first));
+                    .push(world.cells[processor.cell_key].lookup_gene_id(&world.genes, first));
                 Some(())
             }),
             ProcessorInstruction::Call => processor
@@ -260,6 +264,7 @@ impl<'a> Instruction {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cell::Cell;
     use crate::gene::Gene;
     use crate::stack;
     use rand::SeedableRng;
@@ -306,16 +311,18 @@ mod tests {
     fn test_processor_execute() {
         let mut world = World::new();
 
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
         let gene_key = world.genes.insert(gene);
-        let cell = Cell::new();
-        let mut p = Processor::new(gene_key);
+
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 3);
@@ -328,16 +335,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[3, 4, ADD_NR, 6, SUB_NR]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 5);
@@ -351,16 +358,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 6);
@@ -381,16 +388,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
 
@@ -403,16 +410,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[4, ADD_NR]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 2);
@@ -426,16 +433,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[1, 2, 3, 4, 5]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 5);
@@ -455,15 +462,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let gene = Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 4,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 5);
@@ -482,16 +490,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[1, 1, JF_NR, 66, 77]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 4);
@@ -505,16 +513,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[1, 2, JF_NR, 66, 77, 88]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 4);
@@ -527,16 +535,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[1, 200, JF_NR, 66, 88]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 4);
@@ -550,16 +558,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[0, 1, JF_NR, 66, 88]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 4);
@@ -572,16 +580,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[1, 0, JF_NR, 66, 88]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 4);
@@ -594,15 +602,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let gene = Gene::new(0, &[88, 1, 3, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 5);
@@ -616,16 +625,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[88, 0, 3, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
 
@@ -638,15 +647,15 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 5);
@@ -659,16 +668,16 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[88, 1, 0, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
         p.execute_amount(&mut world, &config, 5);
@@ -681,17 +690,17 @@ mod tests {
         let mut world = World::new();
 
         let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
         let gene = Gene::new(0, &[88, 1, 100, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
 
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
 
@@ -703,20 +712,22 @@ mod tests {
     fn test_lookup() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_key = cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let gene1_key = world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
         let gene1_id = world.genes[gene1_key].id;
 
-        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR], &mut rng);
+        let gene2_key =
+            world.cells[cell_key].add_gene(&mut world.genes, &[5, 3, LOOKUP_NR], &mut rng);
 
-        let mut p = Processor::new(gene2_key);
+        let mut p = Processor::new(cell_key, gene2_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 3);
         assert_eq!(p.stack, [5, gene1_id]);
@@ -726,24 +737,26 @@ mod tests {
     fn test_call_without_return() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
         // 5 3
         // 5 <NR>
         // 5 3 4
         // 5 7
-        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        let gene2_key =
+            world.cells[cell_key].add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
-        let mut p = Processor::new(gene2_key);
+        let mut p = Processor::new(cell_key, gene2_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 7);
 
@@ -755,17 +768,19 @@ mod tests {
     fn test_call_impossible_gene_id() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        let gene_key = cell.add_gene(&mut world.genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
-        let mut p = Processor::new(gene_key);
+        let gene_key =
+            world.cells[cell_key].add_gene(&mut world.genes, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
 
@@ -777,10 +792,12 @@ mod tests {
     fn test_call_and_return() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
         // 5
         // 5 3
@@ -790,15 +807,18 @@ mod tests {
         // 5 3 4
         // 5 7
         // 5 7 4
-        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
+        let gene2_key = world.cells[cell_key].add_gene(
+            &mut world.genes,
+            &[5, 3, LOOKUP_NR, CALL_NR, 4],
+            &mut rng,
+        );
 
-        let mut p = Processor::new(gene2_key);
+        let mut p = Processor::new(cell_key, gene2_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 8);
 
@@ -810,10 +830,12 @@ mod tests {
     fn test_call_at_end() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
         // 5
         // 5 3
         // 5 <NR>
@@ -823,16 +845,16 @@ mod tests {
         // 5 7
         // should wrap again to start
         // 5 7 5
-        let gene2_key = cell.add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        let gene2_key =
+            world.cells[cell_key].add_gene(&mut world.genes, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
 
-        let mut p = Processor::new(gene2_key);
+        let mut p = Processor::new(cell_key, gene2_key);
 
         p.execute_amount(&mut world, &config, 8);
 
@@ -844,21 +866,23 @@ mod tests {
     fn test_call_stack_compaction() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
+        let cell = &mut world.cells[cell_key];
         cell.add_gene(&mut world.genes, &[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
         cell.add_gene(&mut world.genes, &[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
         cell.add_gene(&mut world.genes, &[3, 4, 10, 20, ADD_NR, 40], &mut rng);
         let gene_key = cell.add_gene(&mut world.genes, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
 
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 2,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 17);
 
@@ -871,23 +895,24 @@ mod tests {
     fn test_read_gene() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
-        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
-        let gene_key = cell.add_gene(
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+
+        let gene_key = world.cells[cell_key].add_gene(
             &mut world.genes,
             &[5, 3, LOOKUP_NR, 0, READ_GENE_NR],
             &mut rng,
         );
 
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
 
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
         assert_eq!(p.stack, [5, 3]);
@@ -897,22 +922,23 @@ mod tests {
     fn test_read_gene_other_index() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
-        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
-        let gene_key = cell.add_gene(
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+
+        let gene_key = world.cells[cell_key].add_gene(
             &mut world.genes,
             &[5, 3, LOOKUP_NR, 2, READ_GENE_NR],
             &mut rng,
         );
 
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
         assert_eq!(p.stack, [5, ADD_NR]);
@@ -922,21 +948,22 @@ mod tests {
     fn test_read_gene_beyond_end() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
-        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
 
-        let gene_key = cell.add_gene(
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+
+        let gene_key = world.cells[cell_key].add_gene(
             &mut world.genes,
             &[5, 3, LOOKUP_NR, 100, READ_GENE_NR],
             &mut rng,
         );
-        let mut p = Processor::new(gene_key);
+        let mut p = Processor::new(cell_key, gene_key);
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
         assert_eq!(p.stack, [5]);
@@ -946,21 +973,22 @@ mod tests {
     fn test_write_gene() {
         let mut world = World::new();
 
-        let mut cell = Cell::new();
+        let cell = Cell::new();
+        let cell_key = world.cells.insert(cell);
+
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_key = cell.add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
-        let gene2_key = cell.add_gene(
+        let gene1_key = world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
+        let gene2_key = world.cells[cell_key].add_gene(
             &mut world.genes,
             &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR],
             &mut rng,
         );
 
-        let mut p = Processor::new(gene2_key);
+        let mut p = Processor::new(cell_key, gene2_key);
         let config = Config {
             instruction_lookup: &instruction_lookup(),
             max_stack_size: 1000,
             max_call_stack_size: 1000,
-            cell: &cell,
         };
         p.execute_amount(&mut world, &config, 5);
 
