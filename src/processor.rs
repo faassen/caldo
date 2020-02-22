@@ -69,8 +69,7 @@ impl Processor {
             match top {
                 Some((gene_id, return_pc)) => {
                     // return to calling gene
-                    // XXX must check for gene_id being valid!
-                    // XXX must check that gene is in the same cell!
+                    // XXX must check for gene_id being valid! unwrap isn't safe
                     self.gene_key = entities.get_gene_key(self.cell_key, gene_id).unwrap();
                     self.pc = return_pc;
                 }
@@ -117,7 +116,6 @@ impl Processor {
 
     fn call(&mut self, gene_id: u32, entities: &Entities, config: &Config) -> Option<()> {
         let gene = &entities.genes[self.gene_key];
-        // XXX need to check whether gene is in the same cell
         entities
             .get_gene_key(self.cell_key, gene_id)
             .and_then(|call_gene_key| {
