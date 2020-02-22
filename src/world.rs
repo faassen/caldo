@@ -22,4 +22,8 @@ impl World {
     pub fn create_cell(&mut self) -> CellKey {
         self.cells.insert(Cell::new())
     }
+
+    pub fn create_gene(&mut self, code: &[u32]) -> GeneKey {
+        self.genes.insert(Gene::new(0, code))
+    }
 }
