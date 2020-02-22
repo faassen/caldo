@@ -1,3 +1,5 @@
+use rand::Rng;
+
 use crate::cell::CellKey;
 use crate::gene::GeneKey;
 use crate::lookup;
@@ -36,7 +38,12 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, entities: &Entities, config: &Config) -> Option<Action> {
+    pub fn execute<R: Rng>(
+        &mut self,
+        entities: &Entities,
+        config: &Config,
+        rng: &mut R,
+    ) -> Option<Action> {
         let value = entities.genes[self.gene_key].code[self.pc];
 
         // now increase pc
@@ -52,7 +59,7 @@ impl Processor {
             Mode::Instruction => {
                 let instruction = config.instruction_lookup.find(value);
                 // println!("value {:x?}, instruction: {:?}", value, instruction);
-                let action = instruction.execute(self, entities, config);
+                let action = instruction.execute(self, entities, config, rng);
                 if action.is_none() {
                     self.failures += 1;
                 }
@@ -167,6 +174,7 @@ impl Processor {
 pub enum Action {
     Noop,
     GeneWrite(GeneKey, u32),
+    GeneCreate(CellKey, u32),
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -177,15 +185,17 @@ pub enum ProcessorInstruction {
     Call = 0x010130,
     GeneRead = 0x010140,
     GeneWrite = 0x010150,
+    GeneCreate = 0x010160,
     // ProcStart = 0x010160,
 }
 
 impl<'a> ProcessorInstruction {
-    pub fn execute(
+    pub fn execute<R: Rng>(
         &self,
         processor: &mut Processor,
         entities: &Entities,
         config: &'a Config,
+        rng: &mut R,
     ) -> Option<Action> {
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
@@ -224,7 +234,12 @@ impl<'a> ProcessorInstruction {
                 .stack
                 .pop2()
                 .and_then(|(first, second)| processor.gene_write(first, second, entities)),
-            // ProcessorInstruction::ProcStart => processor
+            ProcessorInstruction::GeneCreate => {
+                let id = entities.create_gene_id(rng);
+                processor.stack.push(id);
+                Some(Action::GeneCreate(processor.cell_key, id))
+            }
+                // ProcessorInstruction::ProcStart => processor
             //     .stack
             //     .pop2()
             //     .and_then(|(first, second)| processor.proc_start(first, second, entities)),
@@ -243,18 +258,19 @@ pub enum Instruction {
 }
 
 impl<'a> Instruction {
-    pub fn execute(
+    pub fn execute<R: Rng>(
         &self,
         processor: &mut Processor,
         entities: &Entities,
         config: &'a Config,
+        rng: &mut R,
     ) -> Option<Action> {
         match self {
             Instruction::StackInstruction(instruction) => instruction
                 .execute(&mut processor.stack)
                 .map(|_| Action::Noop),
             Instruction::ProcessorInstruction(instruction) => {
-                instruction.execute(processor, entities, config)
+                instruction.execute(processor, entities, config, rng)
             }
         }
     }
@@ -321,8 +337,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[3, 4, ADD_NR]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(3);
+        world.execute_amount(3, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [7]);
@@ -340,8 +357,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[3, 4, ADD_NR, 6, SUB_NR]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [1]);
@@ -359,8 +377,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[3, 4, ADD_NR]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(6);
+        world.execute_amount(6, &mut rng);
 
         // 3
         // 4
@@ -384,8 +403,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [1]);
@@ -403,8 +423,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[4, ADD_NR]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(2);
+        world.execute_amount(2, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, []);
@@ -422,8 +443,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[1, 2, 3, 4, 5]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         // 1
         // 1 2
@@ -446,8 +468,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         // 1
         // 1 1
@@ -468,11 +491,11 @@ mod tests {
         };
         let mut world = World::new(config);
         let cell_key = world.create_cell();
-
         let gene_key = world.create_gene(&[1, 1, JF_NR, 66, 77]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(4);
+        world.execute_amount(4, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [77]);
@@ -490,8 +513,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[1, 2, JF_NR, 66, 77, 88]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(4);
+        world.execute_amount(4, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [88]);
@@ -508,8 +532,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[1, 200, JF_NR, 66, 88]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(4);
+        world.execute_amount(4, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [66]);
@@ -527,8 +552,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[0, 1, JF_NR, 66, 88]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(4);
+        world.execute_amount(4, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [66]);
@@ -545,8 +571,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[1, 0, JF_NR, 66, 88]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(4);
+        world.execute_amount(4, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [66]);
@@ -563,8 +590,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[88, 1, 3, JB_NR, 66]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [88, 88]);
@@ -582,8 +610,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[88, 0, 3, JB_NR, 66]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [88, 66]);
@@ -601,8 +630,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[88, 1, 1, JB_NR, 66]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [88, 1]);
@@ -619,8 +649,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[88, 1, 0, JB_NR, 66]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [88, 66]);
@@ -637,8 +668,9 @@ mod tests {
         let cell_key = world.create_cell();
         let gene_key = world.create_gene(&[88, 1, 100, JB_NR, 66]);
         let processor_key = world.create_processor(cell_key, gene_key);
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [88, 66]);
@@ -660,7 +692,7 @@ mod tests {
         let gene2_key = world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene2_key);
 
-        world.execute_amount(3);
+        world.execute_amount(3, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, gene1_id]);
@@ -684,7 +716,7 @@ mod tests {
         // lookup finds the gene itself
         let processor_key = world.create_processor(cell1_key, gene2_key);
 
-        world.execute_amount(3);
+        world.execute_amount(3, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, gene2_id]);
@@ -708,7 +740,7 @@ mod tests {
         let gene2_key = world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene2_key);
 
-        world.execute_amount(7);
+        world.execute_amount(7, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, 7]);
@@ -725,7 +757,6 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-
         let other_cell_key = world.create_cell();
         let other_cell_gene_key = world.create_gene_in_cell(other_cell_key, &[6, 7, 8], &mut rng);
         let other_cell_gene_id = world.entities.genes[other_cell_gene_key].id;
@@ -736,7 +767,7 @@ mod tests {
         );
         let processor_key = world.create_processor(cell_key, gene_key);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [7]);
@@ -756,7 +787,7 @@ mod tests {
         let gene_key = world.create_gene_in_cell(cell_key, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene_key);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [7]);
@@ -787,7 +818,7 @@ mod tests {
             world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
         let processor_key = world.create_processor(cell_key, gene2_key);
 
-        world.execute_amount(8);
+        world.execute_amount(8, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, 7, 4]);
@@ -818,7 +849,7 @@ mod tests {
         let gene2_key = world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene2_key);
 
-        world.execute_amount(8);
+        world.execute_amount(8, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, 7, 5]);
@@ -842,7 +873,7 @@ mod tests {
         let gene_key = world.create_gene_in_cell(cell_key, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene_key);
 
-        world.execute_amount(17);
+        world.execute_amount(17, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [0, 1, 2, 3, 4, 30]);
@@ -865,7 +896,7 @@ mod tests {
             world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 0, GENE_READ_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene_key);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, 3]);
@@ -886,7 +917,7 @@ mod tests {
             world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 2, GENE_READ_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene_key);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5, ADD_NR]);
@@ -907,7 +938,7 @@ mod tests {
             world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 100, GENE_READ_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene_key);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(p.stack, [5]);
@@ -928,7 +959,7 @@ mod tests {
             world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 10, GENE_WRITE_NR], &mut rng);
         let processor_key = world.create_processor(cell_key, gene2_key);
 
-        world.execute_amount(5);
+        world.execute_amount(5, &mut rng);
 
         let p = &world.processors[processor_key];
         assert_eq!(world.entities.genes[gene1_key].code, [3, 4, ADD_NR, 10]);

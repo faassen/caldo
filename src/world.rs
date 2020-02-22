@@ -53,26 +53,34 @@ impl World {
         self.processors.insert(Processor::new(cell_key, gene_key))
     }
 
-    pub fn execute_processor(processor: &mut Processor, entities: &mut Entities, config: &Config) {
-        let action = processor.execute(entities, config);
+    pub fn execute_processor<R: Rng>(
+        processor: &mut Processor,
+        entities: &mut Entities,
+        config: &Config,
+        rng: &mut R,
+    ) {
+        let action = processor.execute(entities, config, rng);
         match action {
             Some(Action::Noop) => {}
             Some(Action::GeneWrite(gene_key, value)) => {
                 let gene = &mut entities.genes[gene_key];
                 gene.code.push(value);
             }
+            Some(Action::GeneCreate(cell_key, id)) => {
+                // nothing yet
+            }
             None => {}
         }
     }
 
-    pub fn execute(&mut self) {
+    pub fn execute<R: Rng>(&mut self, rng: &mut R) {
         for (_, processor) in self.processors.iter_mut() {
-            World::execute_processor(processor, &mut self.entities, &self.config);
+            World::execute_processor(processor, &mut self.entities, &self.config, rng);
         }
     }
 
-    pub fn execute_amount(&mut self, amount: usize) {
-        (0..amount).for_each(|_| self.execute())
+    pub fn execute_amount<R: Rng>(&mut self, amount: usize, rng: &mut R) {
+        (0..amount).for_each(|_| self.execute(rng))
     }
 }
 
