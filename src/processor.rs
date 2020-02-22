@@ -157,7 +157,7 @@ impl Processor {
             })
     }
 
-    fn start_proc(&mut self, gene_id: u32, index: u32, entities: &mut Entities) -> Option<()> {
+    fn proc_start(&mut self, gene_id: u32, index: u32, entities: &mut Entities) -> Option<()> {
         entities
             .get_gene_key(self.cell_key, gene_id)
             .and_then(|gene_key| {
@@ -180,7 +180,7 @@ pub enum ProcessorInstruction {
     Call = 0x010130,
     GeneRead = 0x010140,
     GeneWrite = 0x010150,
-    StartProc = 0x010160,
+    ProcStart = 0x010160,
 }
 
 impl<'a> ProcessorInstruction {
@@ -227,10 +227,10 @@ impl<'a> ProcessorInstruction {
                 .stack
                 .pop2()
                 .and_then(|(first, second)| processor.gene_write(first, second, world)),
-            ProcessorInstruction::StartProc => processor
+            ProcessorInstruction::ProcStart => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.start_proc(first, second, world)),
+                .and_then(|(first, second)| processor.proc_start(first, second, world)),
         }
     }
 
