@@ -37,7 +37,7 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, world: &mut World, context: &Config) {
+    pub fn execute(&mut self, world: &mut World, config: &Config) {
         let value = world.genes[self.gene_key].code[self.pc];
 
         // now increase pc
@@ -50,9 +50,9 @@ impl Processor {
                 self.stack.push(value);
             }
             Mode::Instruction => {
-                let instruction = context.instruction_lookup.find(value);
+                let instruction = config.instruction_lookup.find(value);
                 // println!("value {:x?}, instruction: {:?}", value, instruction);
-                let success = instruction.execute(self, world, context);
+                let success = instruction.execute(self, world, config);
                 match success {
                     None => {
                         self.failures += 1;
@@ -80,29 +80,29 @@ impl Processor {
                 }
             }
         }
-        self.shrink_stack_on_overflow(context);
+        self.shrink_stack_on_overflow(config);
     }
 
-    pub fn execute_amount(&mut self, world: &mut World, context: &Config, amount: usize) {
-        (0..amount).for_each(|_| self.execute(world, context))
+    pub fn execute_amount(&mut self, world: &mut World, config: &Config, amount: usize) {
+        (0..amount).for_each(|_| self.execute(world, config))
     }
 
-    pub fn shrink_stack_on_overflow(&mut self, context: &Config) {
-        if self.stack.len() <= context.max_stack_size {
+    pub fn shrink_stack_on_overflow(&mut self, config: &Config) {
+        if self.stack.len() <= config.max_stack_size {
             return;
         }
         self.failures += 1;
         self.stack
-            .splice(..context.max_stack_size / 2, [].iter().cloned());
+            .splice(..config.max_stack_size / 2, [].iter().cloned());
     }
 
-    pub fn shrink_call_stack_on_overflow(&mut self, context: &Config) {
-        if self.call_stack.len() <= context.max_call_stack_size {
+    pub fn shrink_call_stack_on_overflow(&mut self, config: &Config) {
+        if self.call_stack.len() <= config.max_call_stack_size {
             return;
         }
         self.failures += 1;
         self.call_stack
-            .splice(..context.max_call_stack_size / 2, [].iter().cloned());
+            .splice(..config.max_call_stack_size / 2, [].iter().cloned());
     }
 
     fn jump(&mut self, adjust: i32, world: &World) -> Option<()> {
@@ -115,7 +115,7 @@ impl Processor {
         Some(())
     }
 
-    fn call(&mut self, gene_id: u32, world: &World, context: &Config) -> Option<()> {
+    fn call(&mut self, gene_id: u32, world: &World, config: &Config) -> Option<()> {
         let gene = &world.genes[self.gene_key];
         world.cells[self.cell_key]
             .get_gene_key(gene_id)
@@ -128,20 +128,14 @@ impl Processor {
                     }
                 };
                 self.call_stack.push((gene.id, return_pc));
-                self.shrink_call_stack_on_overflow(context);
+                self.shrink_call_stack_on_overflow(config);
                 self.gene_key = call_gene_key;
                 self.pc = 0;
                 Some(())
             })
     }
 
-    fn read_gene(
-        &mut self,
-        gene_id: u32,
-        index: u32,
-        world: &World,
-        context: &Config,
-    ) -> Option<()> {
+    fn read_gene(&mut self, gene_id: u32, index: u32, world: &World) -> Option<()> {
         world.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
@@ -154,13 +148,7 @@ impl Processor {
             })
     }
 
-    fn write_gene(
-        &mut self,
-        gene_id: u32,
-        value: u32,
-        world: &mut World,
-        context: &Config,
-    ) -> Option<()> {
+    fn write_gene(&mut self, gene_id: u32, value: u32, world: &mut World) -> Option<()> {
         world.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
@@ -168,6 +156,10 @@ impl Processor {
                 gene.code.push(value);
                 Some(())
             })
+    }
+
+    fn start_proc(&mut self, gene_id: u32, index: u32, world: &mut World) -> Option<()> {
+        Some(())
     }
 }
 
@@ -179,6 +171,7 @@ pub enum ProcessorInstruction {
     Call = 0x010130,
     ReadGene = 0x010140,
     WriteGene = 0x010150,
+    StartProc = 0x010160,
 }
 
 impl<'a> ProcessorInstruction {
@@ -186,7 +179,7 @@ impl<'a> ProcessorInstruction {
         &self,
         processor: &mut Processor,
         world: &mut World,
-        context: &'a Config,
+        config: &'a Config,
     ) -> Option<()> {
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
@@ -216,15 +209,19 @@ impl<'a> ProcessorInstruction {
             ProcessorInstruction::Call => processor
                 .stack
                 .pop()
-                .and_then(|first| processor.call(first, world, context)),
+                .and_then(|first| processor.call(first, world, config)),
             ProcessorInstruction::ReadGene => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.read_gene(first, second, world, context)),
+                .and_then(|(first, second)| processor.read_gene(first, second, world)),
             ProcessorInstruction::WriteGene => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.write_gene(first, second, world, context)),
+                .and_then(|(first, second)| processor.write_gene(first, second, world)),
+            ProcessorInstruction::StartProc => processor
+                .stack
+                .pop2()
+                .and_then(|(first, second)| processor.start_proc(first, second, world)),
         }
     }
 
