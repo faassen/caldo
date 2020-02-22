@@ -92,7 +92,7 @@ impl Entities {
         let gene_key = self.genes.insert(gene);
         self.gene_by_id.insert(id, gene_key);
         let cell = &mut self.cells[cell_key];
-        cell.add_gene2(gene_key, coordinates);
+        cell.add_gene(gene_key, coordinates);
         gene_key
     }
 }

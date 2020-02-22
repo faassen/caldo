@@ -19,7 +19,7 @@ impl Cell {
         }
     }
 
-    pub fn add_gene2(&mut self, gene_key: GeneKey, coordinates: u32) {
+    pub fn add_gene(&mut self, gene_key: GeneKey, coordinates: u32) {
         self.gene_lookup.add(coordinates, gene_key).unwrap();
         self.genes.insert(gene_key);
     }
