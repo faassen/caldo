@@ -6,7 +6,7 @@ use crate::lookup;
 use crate::stack;
 use crate::stack::{nr_to_bool, Stack};
 use crate::triplet::{Mode, Triplet};
-use crate::world::{Entities, World};
+use crate::world::Entities;
 use slotmap::new_key_type;
 
 new_key_type! {pub struct ProcessorKey; }
@@ -286,6 +286,7 @@ impl<'a> Instruction {
 mod tests {
     use super::*;
     use crate::stack;
+    use crate::world::World;
     use rand::SeedableRng;
     const INSTR_BIT: u32 = 0x01000000;
     const ADD_NR: u32 = stack::Instruction::Add as u32 | INSTR_BIT;
