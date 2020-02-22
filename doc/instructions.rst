@@ -170,10 +170,10 @@ Rotate the top of the stack.
 Gene construction
 =================
 
-GeneCreate ( -- gene_id)
-------------------------
+GeneCreate ( a -- gene_id)
+--------------------------
 
-Create a new gene.
+Create a new gene with value a as the first value.
 
 GeneRead (gene_id a -- b)
 -------------------------

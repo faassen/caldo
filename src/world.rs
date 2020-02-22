@@ -67,7 +67,7 @@ impl World {
                 gene.code.push(value);
             }
             Some(Action::GeneCreate(cell_key, id)) => {
-                entities.create_gene_in_cell_with_id(id, cell_key, &[]);
+                entities.create_gene_in_cell_with_id(id, cell_key, &[0]);
             }
             None => {}
         }

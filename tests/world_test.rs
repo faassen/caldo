@@ -15,6 +15,8 @@ const CALL_NR: u32 = ProcessorInstruction::Call as u32 | INSTR_BIT;
 const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | INSTR_BIT;
 const GENE_READ_NR: u32 = ProcessorInstruction::GeneRead as u32 | INSTR_BIT;
 const GENE_WRITE_NR: u32 = ProcessorInstruction::GeneWrite as u32 | INSTR_BIT;
+const GENE_CREATE_NR: u32 = ProcessorInstruction::GeneCreate as u32 | INSTR_BIT;
+
 const SEED: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
 fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
@@ -41,6 +43,9 @@ fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
     ));
     add(Instruction::ProcessorInstruction(
         ProcessorInstruction::GeneWrite,
+    ));
+    add(Instruction::ProcessorInstruction(
+        ProcessorInstruction::GeneCreate,
     ));
     return l;
 }
@@ -680,4 +685,26 @@ fn test_write_gene() {
     world.execute_amount(5, &mut rng);
 
     assert_eq!(world.entities.genes[gene1_key].code, [3, 4, ADD_NR, 10]);
+}
+
+#[test]
+fn test_create_gene() {
+    let config = Config {
+        instruction_lookup: instruction_lookup(),
+        max_stack_size: 1000,
+        max_call_stack_size: 1000,
+    };
+    let mut world = World::new(config);
+    let cell_key = world.create_cell();
+    let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+    let gene_key = world.create_gene_in_cell(
+        cell_key,
+        &[5, 3, GENE_CREATE_NR, 10, GENE_WRITE_NR],
+        &mut rng,
+    );
+    world.create_processor(cell_key, gene_key);
+
+    world.execute_amount(5, &mut rng);
+
+    // assert_eq!(world.entities.genes[gene1_key].code, [3, 4, ADD_NR, 10]);
 }

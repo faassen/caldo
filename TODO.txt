@@ -2,6 +2,8 @@
 To be implemented
 -----------------
 
+* GeneCreate with value to put in gene.
+
 * Execution costs ATP.
 
 * Fuzzing by generating random genes and running it.
