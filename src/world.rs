@@ -41,14 +41,7 @@ impl World {
         code: &[u32],
         rng: &mut R,
     ) -> GeneKey {
-        let id = self.entities.create_gene_id(rng);
-        let gene = Gene::new(id, code);
-        let coordinates = gene.coordinates();
-        let gene_key = self.entities.genes.insert(gene);
-        self.entities.gene_by_id.insert(id, gene_key);
-        let cell = &mut self.entities.cells[cell_key];
-        cell.add_gene2(gene_key, coordinates);
-        gene_key
+        self.entities.create_gene_in_cell(cell_key, code, rng)
     }
 
     pub fn create_gene(&mut self, code: &[u32]) -> GeneKey {
@@ -75,5 +68,21 @@ impl Entities {
 
     pub fn get_gene_key(&self, gene_id: u32) -> Option<GeneKey> {
         self.gene_by_id.get(&gene_id).map(|&gene_key| gene_key)
+    }
+
+    pub fn create_gene_in_cell<R: Rng>(
+        &mut self,
+        cell_key: CellKey,
+        code: &[u32],
+        rng: &mut R,
+    ) -> GeneKey {
+        let id = self.create_gene_id(rng);
+        let gene = Gene::new(id, code);
+        let coordinates = gene.coordinates();
+        let gene_key = self.genes.insert(gene);
+        self.gene_by_id.insert(id, gene_key);
+        let cell = &mut self.cells[cell_key];
+        cell.add_gene2(gene_key, coordinates);
+        gene_key
     }
 }
