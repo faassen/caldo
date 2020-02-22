@@ -341,9 +341,7 @@ mod tests {
     fn test_processor_execute_multiple() {
         let mut world = World::new();
 
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[3, 4, ADD_NR, 6, SUB_NR]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -363,10 +361,7 @@ mod tests {
     #[test]
     fn test_processor_execute_beyond_end() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[3, 4, ADD_NR]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -393,9 +388,7 @@ mod tests {
     #[test]
     fn test_processor_execute_nearby() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
+        let cell_key = world.create_cell();
 
         let gene = Gene::new(0, &[3, 4, ADD_NR + 1, 6, SUB_NR - 1]);
         let gene_key = world.genes.insert(gene);
@@ -415,10 +408,7 @@ mod tests {
     #[test]
     fn test_processor_execute_stack_underflow() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[4, ADD_NR]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -438,10 +428,7 @@ mod tests {
     #[test]
     fn test_processor_execute_stack_overflow_numbers() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[1, 2, 3, 4, 5]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -467,10 +454,7 @@ mod tests {
     #[test]
     fn test_processor_execute_stack_overflow_instructions() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[1, DUP_NR, DUP_NR, DUP_NR, DUP_NR]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -495,9 +479,7 @@ mod tests {
     #[test]
     fn test_jf() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
+        let cell_key = world.create_cell();
 
         let gene = Gene::new(0, &[1, 1, JF_NR, 66, 77]);
         let gene_key = world.genes.insert(gene);
@@ -518,10 +500,7 @@ mod tests {
     #[test]
     fn test_jf2() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[1, 2, JF_NR, 66, 77, 88]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -540,10 +519,7 @@ mod tests {
     #[test]
     fn test_jf_too_far() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[1, 200, JF_NR, 66, 88]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -563,10 +539,7 @@ mod tests {
     #[test]
     fn test_jf_false() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[0, 1, JF_NR, 66, 88]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -585,10 +558,7 @@ mod tests {
     #[test]
     fn test_jf_zero() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[1, 0, JF_NR, 66, 88]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -607,10 +577,7 @@ mod tests {
     #[test]
     fn test_jb() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[88, 1, 3, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -630,10 +597,7 @@ mod tests {
     #[test]
     fn test_jb_false() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[88, 0, 3, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -652,10 +616,7 @@ mod tests {
     #[test]
     fn test_jb_1() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[88, 1, 1, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -673,10 +634,7 @@ mod tests {
     #[test]
     fn test_jb_zero() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let gene = Gene::new(0, &[88, 1, 0, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
         let mut p = Processor::new(cell_key, gene_key);
@@ -696,8 +654,7 @@ mod tests {
     fn test_jb_too_far() {
         let mut world = World::new();
 
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
+        let cell_key = world.create_cell();
 
         let gene = Gene::new(0, &[88, 1, 100, JB_NR, 66]);
         let gene_key = world.genes.insert(gene);
@@ -718,10 +675,7 @@ mod tests {
     #[test]
     fn test_lookup() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         let gene1_key = world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
         let gene1_id = world.genes[gene1_key].id;
@@ -743,10 +697,7 @@ mod tests {
     #[test]
     fn test_call_without_return() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
@@ -774,10 +725,7 @@ mod tests {
     #[test]
     fn test_call_impossible_gene_id() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         let gene_key =
@@ -798,10 +746,7 @@ mod tests {
     #[test]
     fn test_call_and_return() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
@@ -836,10 +781,7 @@ mod tests {
     #[test]
     fn test_call_at_end() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
@@ -872,10 +814,7 @@ mod tests {
     #[test]
     fn test_call_stack_compaction() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
         let cell = &mut world.cells[cell_key];
@@ -901,10 +840,7 @@ mod tests {
     #[test]
     fn test_read_gene() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
@@ -928,10 +864,7 @@ mod tests {
     #[test]
     fn test_read_gene_other_index() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
@@ -954,10 +887,7 @@ mod tests {
     #[test]
     fn test_read_gene_beyond_end() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
 
@@ -979,10 +909,7 @@ mod tests {
     #[test]
     fn test_write_gene() {
         let mut world = World::new();
-
-        let cell = Cell::new();
-        let cell_key = world.cells.insert(cell);
-
+        let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
         let gene1_key = world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
         let gene2_key = world.cells[cell_key].add_gene(

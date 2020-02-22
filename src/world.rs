@@ -18,4 +18,8 @@ impl World {
             processors: DenseSlotMap::with_key(),
         }
     }
+
+    pub fn create_cell(&mut self) -> CellKey {
+        self.cells.insert(Cell::new())
+    }
 }
