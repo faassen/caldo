@@ -1,11 +1,11 @@
 #[macro_use]
 
-pub mod cell;
-pub mod gene;
+mod cell;
+mod gene;
 pub mod lookup;
-pub mod port;
+mod port;
 pub mod processor;
-pub mod reaction;
+mod reaction;
 pub mod stack;
-pub mod triplet;
+mod triplet;
 pub mod world;
