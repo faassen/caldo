@@ -71,7 +71,7 @@ impl Processor {
                     // return to calling gene
                     // XXX must check for gene_id being valid!
                     // XXX must check that gene is in the same cell!
-                    self.gene_key = entities.get_gene_key(gene_id).unwrap();
+                    self.gene_key = entities.get_gene_key(self.cell_key, gene_id).unwrap();
                     self.pc = return_pc;
                 }
                 None => {
@@ -118,51 +118,59 @@ impl Processor {
     fn call(&mut self, gene_id: u32, entities: &Entities, config: &Config) -> Option<()> {
         let gene = &entities.genes[self.gene_key];
         // XXX need to check whether gene is in the same cell
-        entities.get_gene_key(gene_id).and_then(|call_gene_key| {
-            let return_pc = {
-                if self.pc >= gene.code.len() {
-                    0
-                } else {
-                    self.pc
-                }
-            };
-            self.call_stack.push((gene.id, return_pc));
-            self.shrink_call_stack_on_overflow(config);
-            self.gene_key = call_gene_key;
-            self.pc = 0;
-            Some(())
-        })
+        entities
+            .get_gene_key(self.cell_key, gene_id)
+            .and_then(|call_gene_key| {
+                let return_pc = {
+                    if self.pc >= gene.code.len() {
+                        0
+                    } else {
+                        self.pc
+                    }
+                };
+                self.call_stack.push((gene.id, return_pc));
+                self.shrink_call_stack_on_overflow(config);
+                self.gene_key = call_gene_key;
+                self.pc = 0;
+                Some(())
+            })
     }
 
     fn gene_read(&mut self, gene_id: u32, index: u32, entities: &Entities) -> Option<()> {
-        entities.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &entities.genes[gene_key];
-            if index >= gene.code.len() as u32 {
-                return None;
-            }
-            self.stack.push(gene.code[index as usize]);
-            Some(())
-        })
+        entities
+            .get_gene_key(self.cell_key, gene_id)
+            .and_then(|gene_key| {
+                let gene = &entities.genes[gene_key];
+                if index >= gene.code.len() as u32 {
+                    return None;
+                }
+                self.stack.push(gene.code[index as usize]);
+                Some(())
+            })
     }
 
     fn gene_write(&mut self, gene_id: u32, value: u32, entities: &mut Entities) -> Option<()> {
-        entities.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &mut entities.genes[gene_key];
-            gene.code.push(value);
-            Some(())
-        })
+        entities
+            .get_gene_key(self.cell_key, gene_id)
+            .and_then(|gene_key| {
+                let gene = &mut entities.genes[gene_key];
+                gene.code.push(value);
+                Some(())
+            })
     }
 
     fn start_proc(&mut self, gene_id: u32, index: u32, entities: &mut Entities) -> Option<()> {
-        entities.get_gene_key(gene_id).and_then(|gene_key| {
-            let gene = &entities.genes[gene_key];
-            if index >= gene.code.len() as u32 {
-                return None;
-            }
-            // XXX not finished yet
-            // world.add_processor(gene_key, index);
-            Some(())
-        })
+        entities
+            .get_gene_key(self.cell_key, gene_id)
+            .and_then(|gene_key| {
+                let gene = &entities.genes[gene_key];
+                if index >= gene.code.len() as u32 {
+                    return None;
+                }
+                // XXX not finished yet
+                // world.add_processor(gene_key, index);
+                Some(())
+            })
     }
 }
 
@@ -648,6 +656,28 @@ mod tests {
     }
 
     #[test]
+    fn test_lookup_in_other_cell_fails() {
+        let config = Config {
+            instruction_lookup: instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+        };
+        let mut world = World::new(config);
+        let cell1_key = world.create_cell();
+        let cell2_key = world.create_cell();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+        // put this gene in another cell, so lookup should find itself
+        world.create_gene_in_cell(cell2_key, &[3, 4, ADD_NR], &mut rng);
+        let gene2_key = world.create_gene_in_cell(cell1_key, &[5, 3, LOOKUP_NR], &mut rng);
+        let gene2_id = world.entities.genes[gene2_key].id;
+        // lookup finds the gene itself
+        let mut p = Processor::new(cell1_key, gene2_key);
+
+        p.execute_amount(&mut world, 3);
+        assert_eq!(p.stack, [5, gene2_id]);
+    }
+
+    #[test]
     fn test_call_without_return() {
         let config = Config {
             instruction_lookup: instruction_lookup(),
@@ -674,6 +704,33 @@ mod tests {
 
     #[test]
     fn test_call_impossible_gene_id() {
+        let config = Config {
+            instruction_lookup: instruction_lookup(),
+            max_stack_size: 1000,
+            max_call_stack_size: 1000,
+        };
+        let mut world = World::new(config);
+        let cell_key = world.create_cell();
+        let mut rng = rand_pcg::Pcg32::from_seed(SEED);
+
+        let other_cell_key = world.create_cell();
+        let other_cell_gene_key = world.create_gene_in_cell(other_cell_key, &[6, 7, 8], &mut rng);
+        let other_cell_gene_id = world.entities.genes[other_cell_gene_key].id;
+        let gene_key = world.create_gene_in_cell(
+            cell_key,
+            &[other_cell_gene_id, CALL_NR, 1, 6, ADD_NR],
+            &mut rng,
+        );
+        let mut p = Processor::new(cell_key, gene_key);
+
+        p.execute_amount(&mut world, 5);
+
+        assert_eq!(p.stack, [7]);
+        assert_eq!(p.failures, 1);
+    }
+
+    #[test]
+    fn test_call_gene_id_in_another_cell() {
         let config = Config {
             instruction_lookup: instruction_lookup(),
             max_stack_size: 1000,

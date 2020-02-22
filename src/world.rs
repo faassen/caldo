@@ -66,8 +66,18 @@ impl Entities {
         }
     }
 
-    pub fn get_gene_key(&self, gene_id: u32) -> Option<GeneKey> {
-        self.gene_by_id.get(&gene_id).map(|&gene_key| gene_key)
+    pub fn get_gene_key(&self, cell_key: CellKey, gene_id: u32) -> Option<GeneKey> {
+        match self.gene_by_id.get(&gene_id) {
+            Some(&gene_key) => {
+                let cell = &self.cells[cell_key];
+                if cell.has_gene(gene_key) {
+                    Some(gene_key)
+                } else {
+                    None
+                }
+            }
+            None => None,
+        }
     }
 
     pub fn create_gene_in_cell<R: Rng>(
