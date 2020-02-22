@@ -82,24 +82,6 @@ impl Processor {
         action
     }
 
-    pub fn execute_amount(&mut self, world: &mut World, amount: usize) {
-        (0..amount).for_each(|_| {
-            let action = self.execute(&world.entities, &world.config);
-            match action {
-                Some(Action::Noop) => {}
-                Some(Action::GeneWrite(gene_key, value)) => {
-                    let gene = &mut world.entities.genes[gene_key];
-                    gene.code.push(value);
-                }
-                None => {}
-            }
-        })
-    }
-
-    // pub fn execute_(&mut self, entities: &Entities, config: &Config, amount: usize) {
-    //     (0..amount).for_each(|_| self.execute(entities, config))
-    // }
-
     pub fn shrink_stack_on_overflow(&mut self, config: &Config) {
         if self.stack.len() <= config.max_stack_size {
             return;
