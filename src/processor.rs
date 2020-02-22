@@ -36,8 +36,8 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, world: &mut Entities, config: &Config) {
-        let value = world.genes[self.gene_key].code[self.pc];
+    pub fn execute(&mut self, entities: &mut Entities, config: &Config) {
+        let value = entities.genes[self.gene_key].code[self.pc];
 
         // now increase pc
         self.pc += 1;
@@ -51,7 +51,7 @@ impl Processor {
             Mode::Instruction => {
                 let instruction = config.instruction_lookup.find(value);
                 // println!("value {:x?}, instruction: {:?}", value, instruction);
-                let success = instruction.execute(self, world, config);
+                let success = instruction.execute(self, entities, config);
                 match success {
                     None => {
                         self.failures += 1;
@@ -64,13 +64,13 @@ impl Processor {
         }
 
         // at the end
-        if self.pc >= world.genes[self.gene_key].code.len() {
+        if self.pc >= entities.genes[self.gene_key].code.len() {
             let top = self.call_stack.pop();
             match top {
                 Some((gene_id, return_pc)) => {
                     // return to calling gene
                     // XXX must check for gene_id being valid
-                    self.gene_key = world.cells[self.cell_key].get_gene_key(gene_id).unwrap();
+                    self.gene_key = entities.cells[self.cell_key].get_gene_key(gene_id).unwrap();
                     self.pc = return_pc;
                 }
                 None => {
@@ -104,9 +104,9 @@ impl Processor {
             .splice(..config.max_call_stack_size / 2, [].iter().cloned());
     }
 
-    fn jump(&mut self, adjust: i32, world: &Entities) -> Option<()> {
+    fn jump(&mut self, adjust: i32, entities: &Entities) -> Option<()> {
         let new_pc: i32 = (self.pc as i32) + adjust;
-        let gene = &world.genes[self.gene_key];
+        let gene = &entities.genes[self.gene_key];
         if new_pc < 0 || new_pc >= (gene.code.len() as i32) {
             return None;
         }
@@ -114,9 +114,9 @@ impl Processor {
         Some(())
     }
 
-    fn call(&mut self, gene_id: u32, world: &Entities, config: &Config) -> Option<()> {
-        let gene = &world.genes[self.gene_key];
-        world.cells[self.cell_key]
+    fn call(&mut self, gene_id: u32, entities: &Entities, config: &Config) -> Option<()> {
+        let gene = &entities.genes[self.gene_key];
+        entities.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|call_gene_key| {
                 let return_pc = {
@@ -134,11 +134,11 @@ impl Processor {
             })
     }
 
-    fn gene_read(&mut self, gene_id: u32, index: u32, world: &Entities) -> Option<()> {
-        world.cells[self.cell_key]
+    fn gene_read(&mut self, gene_id: u32, index: u32, entities: &Entities) -> Option<()> {
+        entities.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
-                let gene = &world.genes[gene_key];
+                let gene = &entities.genes[gene_key];
                 if index >= gene.code.len() as u32 {
                     return None;
                 }
@@ -147,21 +147,21 @@ impl Processor {
             })
     }
 
-    fn gene_write(&mut self, gene_id: u32, value: u32, world: &mut Entities) -> Option<()> {
-        world.cells[self.cell_key]
+    fn gene_write(&mut self, gene_id: u32, value: u32, entities: &mut Entities) -> Option<()> {
+        entities.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
-                let gene = &mut world.genes[gene_key];
+                let gene = &mut entities.genes[gene_key];
                 gene.code.push(value);
                 Some(())
             })
     }
 
-    fn start_proc(&mut self, gene_id: u32, index: u32, world: &mut Entities) -> Option<()> {
-        world.cells[self.cell_key]
+    fn start_proc(&mut self, gene_id: u32, index: u32, entities: &mut Entities) -> Option<()> {
+        entities.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
-                let gene = &world.genes[gene_key];
+                let gene = &entities.genes[gene_key];
                 if index >= gene.code.len() as u32 {
                     return None;
                 }
