@@ -67,8 +67,12 @@ impl World {
 
     pub fn execute(&mut self) {
         for (_, processor) in self.processors.iter_mut() {
-            World::execute_processor(processor, &mut self.entities, &self.config)
+            World::execute_processor(processor, &mut self.entities, &self.config);
         }
+    }
+
+    pub fn execute_amount(&mut self, amount: usize) {
+        (0..amount).for_each(|_| self.execute())
     }
 }
 
