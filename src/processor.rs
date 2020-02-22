@@ -643,11 +643,14 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
+
+        let gene1_key = world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
+
+        // let gene1_key = world.entities.cells[cell_key].add_gene(
+        //     &mut world.entities.genes,
+        //     &[3, 4, ADD_NR],
+        //     &mut rng,
+        // );
         let gene1_id = world.entities.genes[gene1_key].id;
 
         let gene2_key = world.entities.cells[cell_key].add_gene(

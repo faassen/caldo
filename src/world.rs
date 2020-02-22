@@ -1,4 +1,6 @@
+use rand::Rng;
 use slotmap::DenseSlotMap;
+use std::collections::HashMap;
 
 use crate::cell::{Cell, CellKey};
 use crate::gene::{Gene, GeneKey};
@@ -8,6 +10,7 @@ pub struct Entities {
     pub cells: DenseSlotMap<CellKey, Cell>,
     pub genes: DenseSlotMap<GeneKey, Gene>,
     pub processors: DenseSlotMap<ProcessorKey, Processor>,
+    gene_by_id: HashMap<u32, GeneKey>,
 }
 
 pub struct World {
@@ -22,6 +25,7 @@ impl World {
                 cells: DenseSlotMap::with_key(),
                 genes: DenseSlotMap::with_key(),
                 processors: DenseSlotMap::with_key(),
+                gene_by_id: HashMap::new(),
             },
             config: config,
         }
@@ -29,6 +33,22 @@ impl World {
 
     pub fn create_cell(&mut self) -> CellKey {
         self.entities.cells.insert(Cell::new())
+    }
+
+    pub fn create_gene_in_cell<R: Rng>(
+        &mut self,
+        cell_key: CellKey,
+        code: &[u32],
+        rng: &mut R,
+    ) -> GeneKey {
+        let id = self.entities.create_gene_id(rng);
+        let gene = Gene::new(id, code);
+        let coordinates = gene.coordinates();
+        let gene_key = self.entities.genes.insert(gene);
+        self.entities.gene_by_id.insert(id, gene_key);
+        let cell = &mut self.entities.cells[cell_key];
+        cell.add_gene2(gene_key, coordinates);
+        gene_key
     }
 
     pub fn create_gene(&mut self, code: &[u32]) -> GeneKey {
@@ -39,5 +59,17 @@ impl World {
         self.entities
             .processors
             .insert(Processor::new(cell_key, gene_key))
+    }
+}
+
+impl Entities {
+    pub fn create_gene_id<R: Rng>(&self, rng: &mut R) -> u32 {
+        loop {
+            let id: u32 = rng.gen();
+            if self.gene_by_id.contains_key(&id) {
+                continue;
+            }
+            return id;
+        }
     }
 }

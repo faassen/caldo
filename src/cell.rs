@@ -36,6 +36,9 @@ impl Cell {
         gene_key
     }
 
+    pub fn add_gene2(&mut self, gene_key: GeneKey, coordinates: u32) {
+        self.gene_lookup.add(coordinates, gene_key).unwrap();
+    }
     fn create_gene_id<R: Rng>(&self, rng: &mut R) -> u32 {
         // XXX if we want to supporting moving genes,
         // we in fact need a globally unique gene id, not
