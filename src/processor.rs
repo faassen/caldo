@@ -36,32 +36,31 @@ impl Processor {
         };
     }
 
-    pub fn execute(&mut self, entities: &mut Entities, config: &Config) {
+    pub fn execute(&mut self, entities: &Entities, config: &Config) -> Option<Action> {
         let value = entities.genes[self.gene_key].code[self.pc];
 
         // now increase pc
         self.pc += 1;
 
         let t = Triplet::from_int(value);
-        match t.mode {
+        let action: Option<Action> = match t.mode {
             Mode::Number => {
                 // println!("number: {}", value);
                 self.stack.push(value);
+                None
             }
             Mode::Instruction => {
                 let instruction = config.instruction_lookup.find(value);
                 // println!("value {:x?}, instruction: {:?}", value, instruction);
-                let success = instruction.execute(self, entities, config);
-                match success {
-                    None => {
-                        self.failures += 1;
-                    }
-                    Some(_) => {}
+                let action = instruction.execute(self, entities, config);
+                if action.is_none() {
+                    self.failures += 1;
                 }
+                action
             }
-            Mode::Call => {}
-            Mode::Noop => {}
-        }
+            Mode::Call => None,
+            Mode::Noop => None,
+        };
 
         // at the end
         if self.pc >= entities.genes[self.gene_key].code.len() {
@@ -80,15 +79,26 @@ impl Processor {
             }
         }
         self.shrink_stack_on_overflow(config);
+        action
     }
 
     pub fn execute_amount(&mut self, world: &mut World, amount: usize) {
-        (0..amount).for_each(|_| self.execute(&mut world.entities, &world.config))
+        (0..amount).for_each(|_| {
+            let action = self.execute(&world.entities, &world.config);
+            match action {
+                Some(Action::Noop) => {}
+                Some(Action::GeneWrite(gene_key, value)) => {
+                    let gene = &mut world.entities.genes[gene_key];
+                    gene.code.push(value);
+                }
+                None => {}
+            }
+        })
     }
 
-    pub fn execute_amount2(&mut self, entities: &mut Entities, config: &Config, amount: usize) {
-        (0..amount).for_each(|_| self.execute(entities, config))
-    }
+    // pub fn execute_amount2(&mut self, entities: &Entities, config: &Config, amount: usize) {
+    //     (0..amount).for_each(|_| self.execute(entities, config))
+    // }
 
     pub fn shrink_stack_on_overflow(&mut self, config: &Config) {
         if self.stack.len() <= config.max_stack_size {
@@ -108,17 +118,17 @@ impl Processor {
             .splice(..config.max_call_stack_size / 2, [].iter().cloned());
     }
 
-    fn jump(&mut self, adjust: i32, entities: &Entities) -> Option<()> {
+    fn jump(&mut self, adjust: i32, entities: &Entities) -> Option<Action> {
         let new_pc: i32 = (self.pc as i32) + adjust;
         let gene = &entities.genes[self.gene_key];
         if new_pc < 0 || new_pc >= (gene.code.len() as i32) {
             return None;
         }
         self.pc = new_pc as usize;
-        Some(())
+        Some(Action::Noop)
     }
 
-    fn call(&mut self, gene_id: u32, entities: &Entities, config: &Config) -> Option<()> {
+    fn call(&mut self, gene_id: u32, entities: &Entities, config: &Config) -> Option<Action> {
         let gene = &entities.genes[self.gene_key];
         entities
             .get_gene_key(self.cell_key, gene_id)
@@ -134,11 +144,11 @@ impl Processor {
                 self.shrink_call_stack_on_overflow(config);
                 self.gene_key = call_gene_key;
                 self.pc = 0;
-                Some(())
+                Some(Action::Noop)
             })
     }
 
-    fn gene_read(&mut self, gene_id: u32, index: u32, entities: &Entities) -> Option<()> {
+    fn gene_read(&mut self, gene_id: u32, index: u32, entities: &Entities) -> Option<Action> {
         entities
             .get_gene_key(self.cell_key, gene_id)
             .and_then(|gene_key| {
@@ -147,33 +157,34 @@ impl Processor {
                     return None;
                 }
                 self.stack.push(gene.code[index as usize]);
-                Some(())
+                Some(Action::Noop)
             })
     }
 
-    fn gene_write(&mut self, gene_id: u32, value: u32, entities: &mut Entities) -> Option<()> {
+    fn gene_write(&self, gene_id: u32, value: u32, entities: &Entities) -> Option<Action> {
         entities
             .get_gene_key(self.cell_key, gene_id)
-            .and_then(|gene_key| {
-                let gene = &mut entities.genes[gene_key];
-                gene.code.push(value);
-                Some(())
-            })
+            .and_then(|gene_key| Some(Action::GeneWrite(gene_key, value)))
     }
 
-    fn proc_start(&mut self, gene_id: u32, index: u32, entities: &mut Entities) -> Option<()> {
-        entities
-            .get_gene_key(self.cell_key, gene_id)
-            .and_then(|gene_key| {
-                let gene = &entities.genes[gene_key];
-                if index >= gene.code.len() as u32 {
-                    return None;
-                }
-                // XXX not finished yet
-                // world.add_processor(gene_key, index);
-                Some(())
-            })
-    }
+    // fn proc_start(&self, gene_id: u32, index: u32, entities: &Entities) -> Option<()> {
+    //     entities
+    //         .get_gene_key(self.cell_key, gene_id)
+    //         .and_then(|gene_key| {
+    //             let gene = &entities.genes[gene_key];
+    //             if index >= gene.code.len() as u32 {
+    //                 return None;
+    //             }
+    //             // XXX not finished yet
+    //             // world.add_processor(gene_key, index);
+    //             Some(())
+    //         })
+    // }
+}
+
+pub enum Action {
+    Noop,
+    GeneWrite(GeneKey, u32),
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -184,32 +195,32 @@ pub enum ProcessorInstruction {
     Call = 0x010130,
     GeneRead = 0x010140,
     GeneWrite = 0x010150,
-    ProcStart = 0x010160,
+    // ProcStart = 0x010160,
 }
 
 impl<'a> ProcessorInstruction {
     pub fn execute(
         &self,
         processor: &mut Processor,
-        entities: &mut Entities,
+        entities: &Entities,
         config: &'a Config,
-    ) -> Option<()> {
+    ) -> Option<Action> {
         match self {
             ProcessorInstruction::JF => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
-                    return Some(());
+                    return Some(Action::Noop);
                 }
                 if second == 0 {
-                    return Some(());
+                    return Some(Action::Noop);
                 }
                 processor.jump(second as i32, entities)
             }),
             ProcessorInstruction::JB => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
-                    return Some(());
+                    return Some(Action::Noop);
                 }
                 if second == 0 {
-                    return Some(());
+                    return Some(Action::Noop);
                 }
                 processor.jump(-(second as i32 + 1), entities)
             }),
@@ -217,7 +228,7 @@ impl<'a> ProcessorInstruction {
                 processor.stack.push(
                     entities.cells[processor.cell_key].lookup_gene_id(&entities.genes, first),
                 );
-                Some(())
+                Some(Action::Noop)
             }),
             ProcessorInstruction::Call => processor
                 .stack
@@ -231,10 +242,10 @@ impl<'a> ProcessorInstruction {
                 .stack
                 .pop2()
                 .and_then(|(first, second)| processor.gene_write(first, second, entities)),
-            ProcessorInstruction::ProcStart => processor
-                .stack
-                .pop2()
-                .and_then(|(first, second)| processor.proc_start(first, second, entities)),
+            // ProcessorInstruction::ProcStart => processor
+            //     .stack
+            //     .pop2()
+            //     .and_then(|(first, second)| processor.proc_start(first, second, entities)),
         }
     }
 
@@ -253,11 +264,13 @@ impl<'a> Instruction {
     pub fn execute(
         &self,
         processor: &mut Processor,
-        entities: &mut Entities,
+        entities: &Entities,
         config: &'a Config,
-    ) -> Option<()> {
+    ) -> Option<Action> {
         match self {
-            Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
+            Instruction::StackInstruction(instruction) => instruction
+                .execute(&mut processor.stack)
+                .map(|_| Action::Noop),
             Instruction::ProcessorInstruction(instruction) => {
                 instruction.execute(processor, entities, config)
             }
