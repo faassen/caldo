@@ -179,8 +179,8 @@ If `gene_id` does not refer to a gene, failure.
 
 If index `a` does not exist on gene, failure.
 
-Gene ( -- gene_id)
-------------------
+CreateGene ( -- gene_id)
+------------------------
 
 Create a new gene.
 

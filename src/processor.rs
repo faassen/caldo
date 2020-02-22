@@ -159,7 +159,17 @@ impl Processor {
     }
 
     fn start_proc(&mut self, gene_id: u32, index: u32, world: &mut World) -> Option<()> {
-        Some(())
+        world.cells[self.cell_key]
+            .get_gene_key(gene_id)
+            .and_then(|gene_key| {
+                let gene = &world.genes[gene_key];
+                if index >= gene.code.len() as u32 {
+                    return None;
+                }
+                // XXX not finished yet
+                // world.add_processor(gene_key, index);
+                Some(())
+            })
     }
 }
 
