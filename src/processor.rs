@@ -69,8 +69,9 @@ impl Processor {
             match top {
                 Some((gene_id, return_pc)) => {
                     // return to calling gene
-                    // XXX must check for gene_id being valid
-                    self.gene_key = entities.cells[self.cell_key].get_gene_key(gene_id).unwrap();
+                    // XXX must check for gene_id being valid!
+                    // XXX must check that gene is in the same cell!
+                    self.gene_key = entities.get_gene_key(gene_id).unwrap();
                     self.pc = return_pc;
                 }
                 None => {
@@ -116,59 +117,52 @@ impl Processor {
 
     fn call(&mut self, gene_id: u32, entities: &Entities, config: &Config) -> Option<()> {
         let gene = &entities.genes[self.gene_key];
-        entities.cells[self.cell_key]
-            .get_gene_key(gene_id)
-            .and_then(|call_gene_key| {
-                let return_pc = {
-                    if self.pc >= gene.code.len() {
-                        0
-                    } else {
-                        self.pc
-                    }
-                };
-                self.call_stack.push((gene.id, return_pc));
-                self.shrink_call_stack_on_overflow(config);
-                self.gene_key = call_gene_key;
-                self.pc = 0;
-                Some(())
-            })
+        // XXX need to check whether gene is in the same cell
+        entities.get_gene_key(gene_id).and_then(|call_gene_key| {
+            let return_pc = {
+                if self.pc >= gene.code.len() {
+                    0
+                } else {
+                    self.pc
+                }
+            };
+            self.call_stack.push((gene.id, return_pc));
+            self.shrink_call_stack_on_overflow(config);
+            self.gene_key = call_gene_key;
+            self.pc = 0;
+            Some(())
+        })
     }
 
     fn gene_read(&mut self, gene_id: u32, index: u32, entities: &Entities) -> Option<()> {
-        entities.cells[self.cell_key]
-            .get_gene_key(gene_id)
-            .and_then(|gene_key| {
-                let gene = &entities.genes[gene_key];
-                if index >= gene.code.len() as u32 {
-                    return None;
-                }
-                self.stack.push(gene.code[index as usize]);
-                Some(())
-            })
+        entities.get_gene_key(gene_id).and_then(|gene_key| {
+            let gene = &entities.genes[gene_key];
+            if index >= gene.code.len() as u32 {
+                return None;
+            }
+            self.stack.push(gene.code[index as usize]);
+            Some(())
+        })
     }
 
     fn gene_write(&mut self, gene_id: u32, value: u32, entities: &mut Entities) -> Option<()> {
-        entities.cells[self.cell_key]
-            .get_gene_key(gene_id)
-            .and_then(|gene_key| {
-                let gene = &mut entities.genes[gene_key];
-                gene.code.push(value);
-                Some(())
-            })
+        entities.get_gene_key(gene_id).and_then(|gene_key| {
+            let gene = &mut entities.genes[gene_key];
+            gene.code.push(value);
+            Some(())
+        })
     }
 
     fn start_proc(&mut self, gene_id: u32, index: u32, entities: &mut Entities) -> Option<()> {
-        entities.cells[self.cell_key]
-            .get_gene_key(gene_id)
-            .and_then(|gene_key| {
-                let gene = &entities.genes[gene_key];
-                if index >= gene.code.len() as u32 {
-                    return None;
-                }
-                // XXX not finished yet
-                // world.add_processor(gene_key, index);
-                Some(())
-            })
+        entities.get_gene_key(gene_id).and_then(|gene_key| {
+            let gene = &entities.genes[gene_key];
+            if index >= gene.code.len() as u32 {
+                return None;
+            }
+            // XXX not finished yet
+            // world.add_processor(gene_key, index);
+            Some(())
+        })
     }
 }
 
@@ -643,21 +637,9 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-
         let gene1_key = world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
-
-        // let gene1_key = world.entities.cells[cell_key].add_gene(
-        //     &mut world.entities.genes,
-        //     &[3, 4, ADD_NR],
-        //     &mut rng,
-        // );
         let gene1_id = world.entities.genes[gene1_key].id;
-
-        let gene2_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR],
-            &mut rng,
-        );
+        let gene2_key = world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene2_key);
 
@@ -675,22 +657,12 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-
-        world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
-
+        world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
         // 5 3
         // 5 <NR>
         // 5 3 4
         // 5 7
-        let gene2_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, CALL_NR],
-            &mut rng,
-        );
+        let gene2_key = world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene2_key);
 
@@ -710,12 +682,7 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-
-        let gene_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, CALL_NR, 1, 6, ADD_NR],
-            &mut rng,
-        );
+        let gene_key = world.create_gene_in_cell(cell_key, &[5, CALL_NR, 1, 6, ADD_NR], &mut rng);
         let mut p = Processor::new(cell_key, gene_key);
 
         p.execute_amount(&mut world, 5);
@@ -734,12 +701,7 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-
-        world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
+        world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
 
         // 5
         // 5 3
@@ -749,11 +711,8 @@ mod tests {
         // 5 3 4
         // 5 7
         // 5 7 4
-        let gene2_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, CALL_NR, 4],
-            &mut rng,
-        );
+        let gene2_key =
+            world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, CALL_NR, 4], &mut rng);
 
         let mut p = Processor::new(cell_key, gene2_key);
 
@@ -774,11 +733,7 @@ mod tests {
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
+        world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
         // 5
         // 5 3
         // 5 <NR>
@@ -788,11 +743,7 @@ mod tests {
         // 5 7
         // should wrap again to start
         // 5 7 5
-        let gene2_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, CALL_NR],
-            &mut rng,
-        );
+        let gene2_key = world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene2_key);
 
@@ -813,27 +764,10 @@ mod tests {
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
 
-        let cell = &mut world.entities.cells[cell_key];
-        cell.add_gene(
-            &mut world.entities.genes,
-            &[1, 2, LOOKUP_NR, CALL_NR],
-            &mut rng,
-        );
-        cell.add_gene(
-            &mut world.entities.genes,
-            &[2, 3, LOOKUP_NR, CALL_NR],
-            &mut rng,
-        );
-        cell.add_gene(
-            &mut world.entities.genes,
-            &[3, 4, 10, 20, ADD_NR, 40],
-            &mut rng,
-        );
-        let gene_key = cell.add_gene(
-            &mut world.entities.genes,
-            &[0, 1, LOOKUP_NR, CALL_NR],
-            &mut rng,
-        );
+        world.create_gene_in_cell(cell_key, &[1, 2, LOOKUP_NR, CALL_NR], &mut rng);
+        world.create_gene_in_cell(cell_key, &[2, 3, LOOKUP_NR, CALL_NR], &mut rng);
+        world.create_gene_in_cell(cell_key, &[3, 4, 10, 20, ADD_NR, 40], &mut rng);
+        let gene_key = world.create_gene_in_cell(cell_key, &[0, 1, LOOKUP_NR, CALL_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene_key);
 
@@ -854,17 +788,10 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
+        world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
 
-        let gene_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, 0, GENE_READ_NR],
-            &mut rng,
-        );
+        let gene_key =
+            world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 0, GENE_READ_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene_key);
 
@@ -882,17 +809,11 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
 
-        let gene_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, 2, GENE_READ_NR],
-            &mut rng,
-        );
+        world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
+
+        let gene_key =
+            world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 2, GENE_READ_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene_key);
 
@@ -910,17 +831,11 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
 
-        let gene_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, 100, GENE_READ_NR],
-            &mut rng,
-        );
+        world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
+
+        let gene_key =
+            world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 100, GENE_READ_NR], &mut rng);
         let mut p = Processor::new(cell_key, gene_key);
 
         p.execute_amount(&mut world, 5);
@@ -937,16 +852,9 @@ mod tests {
         let mut world = World::new(config);
         let cell_key = world.create_cell();
         let mut rng = rand_pcg::Pcg32::from_seed(SEED);
-        let gene1_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[3, 4, ADD_NR],
-            &mut rng,
-        );
-        let gene2_key = world.entities.cells[cell_key].add_gene(
-            &mut world.entities.genes,
-            &[5, 3, LOOKUP_NR, 10, GENE_WRITE_NR],
-            &mut rng,
-        );
+        let gene1_key = world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
+        let gene2_key =
+            world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 10, GENE_WRITE_NR], &mut rng);
 
         let mut p = Processor::new(cell_key, gene2_key);
 

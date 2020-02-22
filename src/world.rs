@@ -72,4 +72,8 @@ impl Entities {
             return id;
         }
     }
+
+    pub fn get_gene_key(&self, gene_id: u32) -> Option<GeneKey> {
+        self.gene_by_id.get(&gene_id).map(|&gene_key| gene_key)
+    }
 }
