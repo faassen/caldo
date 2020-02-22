@@ -675,7 +675,7 @@ fn test_write_gene() {
     let gene1_key = world.create_gene_in_cell(cell_key, &[3, 4, ADD_NR], &mut rng);
     let gene2_key =
         world.create_gene_in_cell(cell_key, &[5, 3, LOOKUP_NR, 10, GENE_WRITE_NR], &mut rng);
-    let processor_key = world.create_processor(cell_key, gene2_key);
+    world.create_processor(cell_key, gene2_key);
 
     world.execute_amount(5, &mut rng);
 

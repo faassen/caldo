@@ -67,7 +67,7 @@ impl World {
                 gene.code.push(value);
             }
             Some(Action::GeneCreate(cell_key, id)) => {
-                // nothing yet
+                entities.create_gene_in_cell_with_id(id, cell_key, &[]);
             }
             None => {}
         }
@@ -116,6 +116,15 @@ impl Entities {
         rng: &mut R,
     ) -> GeneKey {
         let id = self.create_gene_id(rng);
+        self.create_gene_in_cell_with_id(id, cell_key, code)
+    }
+
+    pub fn create_gene_in_cell_with_id(
+        &mut self,
+        id: u32,
+        cell_key: CellKey,
+        code: &[u32],
+    ) -> GeneKey {
         let gene = Gene::new(id, code);
         let coordinates = gene.coordinates();
         let gene_key = self.genes.insert(gene);

@@ -3,9 +3,9 @@
 mod cell;
 mod gene;
 pub mod lookup;
-mod port;
+pub mod port; // not really public
 pub mod processor;
-mod reaction;
+// pub mod reaction; // not really public
 pub mod stack;
 mod triplet;
 pub mod world;
