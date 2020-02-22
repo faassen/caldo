@@ -96,7 +96,7 @@ impl Processor {
         })
     }
 
-    // pub fn execute_amount2(&mut self, entities: &Entities, config: &Config, amount: usize) {
+    // pub fn execute_(&mut self, entities: &Entities, config: &Config, amount: usize) {
     //     (0..amount).for_each(|_| self.execute(entities, config))
     // }
 

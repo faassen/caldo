@@ -4,18 +4,18 @@ use std::collections::HashMap;
 
 use crate::cell::{Cell, CellKey};
 use crate::gene::{Gene, GeneKey};
-use crate::processor::{Config, Processor, ProcessorKey};
+use crate::processor::{Action, Config, Processor, ProcessorKey};
 
 pub struct Entities {
     pub cells: DenseSlotMap<CellKey, Cell>,
     pub genes: DenseSlotMap<GeneKey, Gene>,
-    pub processors: DenseSlotMap<ProcessorKey, Processor>,
     gene_by_id: HashMap<u32, GeneKey>,
 }
 
 pub struct World {
     pub entities: Entities,
     pub config: Config,
+    pub processors: DenseSlotMap<ProcessorKey, Processor>,
 }
 
 impl World {
@@ -24,9 +24,10 @@ impl World {
             entities: Entities {
                 cells: DenseSlotMap::with_key(),
                 genes: DenseSlotMap::with_key(),
-                processors: DenseSlotMap::with_key(),
+
                 gene_by_id: HashMap::new(),
             },
+            processors: DenseSlotMap::with_key(),
             config: config,
         }
     }
@@ -49,22 +50,26 @@ impl World {
     }
 
     pub fn create_processor(&mut self, cell_key: CellKey, gene_key: GeneKey) -> ProcessorKey {
-        self.entities
-            .processors
-            .insert(Processor::new(cell_key, gene_key))
+        self.processors.insert(Processor::new(cell_key, gene_key))
     }
 
-    // pub fn execute_amount(&mut self, processor_key: ProcessorKey, amount: usize) {
-    //     let processor = &self.entities.processors[processor_key];
+    pub fn execute_processor(processor: &mut Processor, entities: &mut Entities, config: &Config) {
+        let action = processor.execute(entities, config);
+        match action {
+            Some(Action::Noop) => {}
+            Some(Action::GeneWrite(gene_key, value)) => {
+                let gene = &mut entities.genes[gene_key];
+                gene.code.push(value);
+            }
+            None => {}
+        }
+    }
 
-    //     processor.execute_amount2(&mut self.entities, &self.config, amount);
-    // }
-
-    // pub fn execute_processors(&mut self, amount: usize) {
-    //     for (_, processor) in &mut self.entities.processors {
-    //         processor.execute_amount2(&mut self.entities, &self.config, amount);
-    //     }
-    // }
+    pub fn execute(&mut self) {
+        for (_, processor) in self.processors.iter_mut() {
+            World::execute_processor(processor, &mut self.entities, &self.config)
+        }
+    }
 }
 
 impl Entities {
