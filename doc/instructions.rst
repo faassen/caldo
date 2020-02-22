@@ -170,7 +170,12 @@ Rotate the top of the stack.
 Gene construction
 =================
 
-ReadGene (gene_id a -- b)
+GeneCreate ( -- gene_id)
+------------------------
+
+Create a new gene.
+
+GeneRead (gene_id a -- b)
 -------------------------
 
 Read index `a` of `gene_id`. Place value there on stack.
@@ -179,20 +184,15 @@ If `gene_id` does not refer to a gene, failure.
 
 If index `a` does not exist on gene, failure.
 
-CreateGene ( -- gene_id)
-------------------------
-
-Create a new gene.
-
-WriteGene (gene_id a -- )
+GeneWrite (gene_id a -- )
 -------------------------
 
 Write value `a` to the end of gene.
 
 If gene id does not exist, failure.
 
-FinishGene (gene_id --)
------------------------
+GeneComplete (gene_id --)
+-------------------------
 
 XXX do we want this? It makes various systems harder
 to write. On the other hand is supports compilation.
@@ -200,16 +200,24 @@ to write. On the other hand is supports compilation.
 Finish writing the gene. After this is it is ready to
 receive processors.
 
+GeneDestroy (gene_id --)
+------------------------
+
+Do we want this? This would break the gene into its component
+materials.
+
 Processor
 ---------
 
-StartProc (gene_id a -- )
--------------------------
+ProcCreate (gene_id a -- )
+--------------------------
 
 Start a processor on gene with index a.
 
-EndProc
--------
+Pun not intentional.
+
+ProcDestroy
+-----------
 
 This processor is removed.
 

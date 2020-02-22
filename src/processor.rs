@@ -135,7 +135,7 @@ impl Processor {
             })
     }
 
-    fn read_gene(&mut self, gene_id: u32, index: u32, world: &World) -> Option<()> {
+    fn gene_read(&mut self, gene_id: u32, index: u32, world: &World) -> Option<()> {
         world.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
@@ -148,7 +148,7 @@ impl Processor {
             })
     }
 
-    fn write_gene(&mut self, gene_id: u32, value: u32, world: &mut World) -> Option<()> {
+    fn gene_write(&mut self, gene_id: u32, value: u32, world: &mut World) -> Option<()> {
         world.cells[self.cell_key]
             .get_gene_key(gene_id)
             .and_then(|gene_key| {
@@ -179,8 +179,8 @@ pub enum ProcessorInstruction {
     JB = 0x010110,
     Lookup = 0x010120,
     Call = 0x010130,
-    ReadGene = 0x010140,
-    WriteGene = 0x010150,
+    GeneRead = 0x010140,
+    GeneWrite = 0x010150,
     StartProc = 0x010160,
 }
 
@@ -220,14 +220,14 @@ impl<'a> ProcessorInstruction {
                 .stack
                 .pop()
                 .and_then(|first| processor.call(first, world, config)),
-            ProcessorInstruction::ReadGene => processor
+            ProcessorInstruction::GeneRead => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.read_gene(first, second, world)),
-            ProcessorInstruction::WriteGene => processor
+                .and_then(|(first, second)| processor.gene_read(first, second, world)),
+            ProcessorInstruction::GeneWrite => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.write_gene(first, second, world)),
+                .and_then(|(first, second)| processor.gene_write(first, second, world)),
             ProcessorInstruction::StartProc => processor
                 .stack
                 .pop2()
@@ -283,8 +283,8 @@ mod tests {
     const JB_NR: u32 = ProcessorInstruction::JB as u32 | INSTR_BIT;
     const CALL_NR: u32 = ProcessorInstruction::Call as u32 | INSTR_BIT;
     const LOOKUP_NR: u32 = ProcessorInstruction::Lookup as u32 | INSTR_BIT;
-    const READ_GENE_NR: u32 = ProcessorInstruction::ReadGene as u32 | INSTR_BIT;
-    const WRITE_GENE_NR: u32 = ProcessorInstruction::WriteGene as u32 | INSTR_BIT;
+    const GENE_READ_NR: u32 = ProcessorInstruction::GeneRead as u32 | INSTR_BIT;
+    const GENE_WRITE_NR: u32 = ProcessorInstruction::GeneWrite as u32 | INSTR_BIT;
     const SEED: [u8; 16] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 
     fn instruction_lookup<'a>() -> lookup::Lookup<Instruction> {
@@ -307,10 +307,10 @@ mod tests {
             ProcessorInstruction::Call,
         ));
         add(Instruction::ProcessorInstruction(
-            ProcessorInstruction::ReadGene,
+            ProcessorInstruction::GeneRead,
         ));
         add(Instruction::ProcessorInstruction(
-            ProcessorInstruction::WriteGene,
+            ProcessorInstruction::GeneWrite,
         ));
         return l;
     }
@@ -910,7 +910,7 @@ mod tests {
 
         let gene_key = world.cells[cell_key].add_gene(
             &mut world.genes,
-            &[5, 3, LOOKUP_NR, 0, READ_GENE_NR],
+            &[5, 3, LOOKUP_NR, 0, GENE_READ_NR],
             &mut rng,
         );
 
@@ -937,7 +937,7 @@ mod tests {
 
         let gene_key = world.cells[cell_key].add_gene(
             &mut world.genes,
-            &[5, 3, LOOKUP_NR, 2, READ_GENE_NR],
+            &[5, 3, LOOKUP_NR, 2, GENE_READ_NR],
             &mut rng,
         );
 
@@ -963,7 +963,7 @@ mod tests {
 
         let gene_key = world.cells[cell_key].add_gene(
             &mut world.genes,
-            &[5, 3, LOOKUP_NR, 100, READ_GENE_NR],
+            &[5, 3, LOOKUP_NR, 100, GENE_READ_NR],
             &mut rng,
         );
         let mut p = Processor::new(cell_key, gene_key);
@@ -987,7 +987,7 @@ mod tests {
         let gene1_key = world.cells[cell_key].add_gene(&mut world.genes, &[3, 4, ADD_NR], &mut rng);
         let gene2_key = world.cells[cell_key].add_gene(
             &mut world.genes,
-            &[5, 3, LOOKUP_NR, 10, WRITE_GENE_NR],
+            &[5, 3, LOOKUP_NR, 10, GENE_WRITE_NR],
             &mut rng,
         );
 
