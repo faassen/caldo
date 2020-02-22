@@ -11,7 +11,6 @@ new_key_type! {pub struct CellKey; }
 pub struct Cell {
     genes: HashMap<u32, GeneKey>,
     gene_lookup: lookup::Lookup<GeneKey>,
-    // processors: Vec<Processor<'a>>,
 }
 
 impl Cell {
@@ -19,7 +18,6 @@ impl Cell {
         Cell {
             genes: HashMap::new(),
             gene_lookup: lookup::Lookup::new(),
-            // processors: Vec::new(),
         }
     }
 
