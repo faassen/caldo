@@ -191,16 +191,25 @@ Write value `a` to the end of gene.
 
 If gene id does not exist, failure.
 
+FinishGene (gene_id --)
+-----------------------
+
+XXX do we want this? It makes various systems harder
+to write. On the other hand is supports compilation.
+
+Finish writing the gene. After this is it is ready to
+receive processors.
+
 Processor
 ---------
 
-Start (gene_id a -- )
----------------------
+StartProc (gene_id a -- )
+-------------------------
 
 Start a processor on gene with index a.
 
-End
----
+EndProc
+-------
 
 This processor is removed.
 
