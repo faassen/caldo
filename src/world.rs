@@ -53,6 +53,18 @@ impl World {
             .processors
             .insert(Processor::new(cell_key, gene_key))
     }
+
+    // pub fn execute_amount(&mut self, processor_key: ProcessorKey, amount: usize) {
+    //     let processor = &self.entities.processors[processor_key];
+
+    //     processor.execute_amount2(&mut self.entities, &self.config, amount);
+    // }
+
+    // pub fn execute_processors(&mut self, amount: usize) {
+    //     for (_, processor) in &mut self.entities.processors {
+    //         processor.execute_amount2(&mut self.entities, &self.config, amount);
+    //     }
+    // }
 }
 
 impl Entities {

@@ -86,6 +86,10 @@ impl Processor {
         (0..amount).for_each(|_| self.execute(&mut world.entities, &world.config))
     }
 
+    pub fn execute_amount2(&mut self, entities: &mut Entities, config: &Config, amount: usize) {
+        (0..amount).for_each(|_| self.execute(entities, config))
+    }
+
     pub fn shrink_stack_on_overflow(&mut self, config: &Config) {
         if self.stack.len() <= config.max_stack_size {
             return;
@@ -187,7 +191,7 @@ impl<'a> ProcessorInstruction {
     pub fn execute(
         &self,
         processor: &mut Processor,
-        world: &mut Entities,
+        entities: &mut Entities,
         config: &'a Config,
     ) -> Option<()> {
         match self {
@@ -198,7 +202,7 @@ impl<'a> ProcessorInstruction {
                 if second == 0 {
                     return Some(());
                 }
-                processor.jump(second as i32, world)
+                processor.jump(second as i32, entities)
             }),
             ProcessorInstruction::JB => processor.stack.pop2().and_then(|(first, second)| {
                 if !nr_to_bool(first) {
@@ -207,30 +211,30 @@ impl<'a> ProcessorInstruction {
                 if second == 0 {
                     return Some(());
                 }
-                processor.jump(-(second as i32 + 1), world)
+                processor.jump(-(second as i32 + 1), entities)
             }),
             ProcessorInstruction::Lookup => processor.stack.pop().and_then(|first| {
-                processor
-                    .stack
-                    .push(world.cells[processor.cell_key].lookup_gene_id(&world.genes, first));
+                processor.stack.push(
+                    entities.cells[processor.cell_key].lookup_gene_id(&entities.genes, first),
+                );
                 Some(())
             }),
             ProcessorInstruction::Call => processor
                 .stack
                 .pop()
-                .and_then(|first| processor.call(first, world, config)),
+                .and_then(|first| processor.call(first, entities, config)),
             ProcessorInstruction::GeneRead => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.gene_read(first, second, world)),
+                .and_then(|(first, second)| processor.gene_read(first, second, entities)),
             ProcessorInstruction::GeneWrite => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.gene_write(first, second, world)),
+                .and_then(|(first, second)| processor.gene_write(first, second, entities)),
             ProcessorInstruction::ProcStart => processor
                 .stack
                 .pop2()
-                .and_then(|(first, second)| processor.proc_start(first, second, world)),
+                .and_then(|(first, second)| processor.proc_start(first, second, entities)),
         }
     }
 
@@ -249,13 +253,13 @@ impl<'a> Instruction {
     pub fn execute(
         &self,
         processor: &mut Processor,
-        world: &mut Entities,
+        entities: &mut Entities,
         config: &'a Config,
     ) -> Option<()> {
         match self {
             Instruction::StackInstruction(instruction) => instruction.execute(&mut processor.stack),
             Instruction::ProcessorInstruction(instruction) => {
-                instruction.execute(processor, world, config)
+                instruction.execute(processor, entities, config)
             }
         }
     }
@@ -270,8 +274,6 @@ impl<'a> Instruction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cell::Cell;
-    use crate::gene::Gene;
     use crate::stack;
     use rand::SeedableRng;
     const INSTR_BIT: u32 = 0x01000000;
