@@ -1,7 +1,8 @@
-Caldo primigenio
-================
+# Caldo primigenio
 
-Primordial Soup on the web.
+Primordial Soup.
+
+This is currently a work in progress. Any documentation is likely incorrect.
 
 Technology choices:
 
