@@ -1,0 +1,50 @@
+Thoughts and ideas
+==================
+
+Some thoughts and ideas I've had following alife2020.
+
+* Autoconstructive evolution is a useful term for what I'm trying to do.
+
+* Look at Push instruction set. But Caldo is not typed.
+
+* Gene regulation: inhibit and excite. How would we start a new cell with
+  inhibited/excited genes?
+
+* We should create a 3d map of instructions and place instructions there.
+
+* Definitely provide tools for homeostatis: inspect own levels of resources,
+  and in environment.
+
+* Julian Miller, CGP, cartesian genetic programming. What operators does it use?
+
+* Downsampling lexicase selection: is a bit like "feeding" for correct answers
+- of training cases.
+
+* Enzyme Commission Numbers; what kind of enzymes are there and what do they do?
+
+* Steal training scenarios from pushgp. Mirror image, smallest, string
+lengths, vector average, replace space with, negative to zero, last index of
+zero, x-word lines, syllables, compare string, double letters, scrabble score.
+
+* Steal training cases from avida.
+
+* Changing environments. We could have problems "per area". And problem solving
+to do metabolism. We could also slowly change the environment, making problems
+more complex, or shift the problem set.
+
+* Sensing: Caldo life forms should be able to detect things at a certain
+distance, not only close by.
+
+* Susan Stepney, innovation in a stringmol artificial chemistry.
+
+Noise
+-----
+
+We should have "noise" on each execution, even though that makes things slower
+as this generates a natural source of mutation. Very rarely pertubation should
+be huge. This is the only form of mutation.
+
+A possible optimization is to "compile" but every n instructions we execute
+one in the uncompiled perturbed style. We can easily track which is the next
+pertubation point.
+
