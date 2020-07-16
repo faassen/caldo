@@ -198,7 +198,7 @@ XXX do we want this? It makes various systems harder
 to write. On the other hand is supports compilation.
 
 Finish writing the gene. After this is it is ready to
-receive processors.
+receive processors. It cannot be modified anymore.
 
 GeneDestroy (gene_id --)
 ------------------------
